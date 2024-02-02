@@ -1,0 +1,5 @@
+# @package _global_
+defaults:
+  - override /model: mistrallite_7b
+  - override /data: mediqa
+  - override /trainer: 0_shot

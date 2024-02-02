@@ -1,0 +1,17 @@
+defaults:
+  - base_config
+  - data: mediqa
+  - model: mistral_7b_instruct
+  - trainer: 0_shot
+  - prompt: prompt_0
+  - experiment: null
+  - _self_
+
+hydra:
+  output_subdir: null
+random_seed: 1234
+
+wandb_project: MEDIQA
+wandb_entity: aryopg
+
+debug: false

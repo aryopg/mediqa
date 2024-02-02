@@ -1,0 +1,11 @@
+defaults:
+  - base_data_config
+
+data_dir: data
+train_data_filename: 
+valid_data_filename: 
+test_data_filename:
+batch_size: 1
+num_workers: 8
+drop_last: false
+pin_memory: false

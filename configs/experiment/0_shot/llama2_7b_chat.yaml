@@ -1,0 +1,5 @@
+# @package _global_
+defaults:
+  - override /model: llama2_7b_chat
+  - override /data: mediqa
+  - override /trainer: 0_shot
