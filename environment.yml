@@ -31,5 +31,4 @@ dependencies:
   - transformers
   - tokenizers
   - pip:
-    - deepspeed
     - rouge
