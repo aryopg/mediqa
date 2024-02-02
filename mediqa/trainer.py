@@ -17,6 +17,8 @@ from tqdm import tqdm
 
 from .configs import TrainingConfigs
 from .dataset import MEDIQADataset
+from .metrics import NLGMetrics
+from .pipeline import ModelPipeline
 
 
 class Trainer:
@@ -27,6 +29,8 @@ class Trainer:
         self.output_dir = self.hydra_cfg["runtime"]["output_dir"]
 
         self.dataloaders = self._load_dataloaders()
+        self.pipeline = self._load_pipeline()
+        self.accelerator = self._load_accelerator()
 
         if not configs.debug:
             self._setup_run()
@@ -50,6 +54,54 @@ class Trainer:
             )
 
         return dataloaders
+
+    def _load_pipeline(self) -> ModelPipeline:
+        return ModelPipeline(self.configs.model)
+
+    def _load_accelerator(self) -> Accelerator:
+        self.accelerator = Accelerator(log_with="wandb")
+        (
+            self.pipeline.model,
+            self.dataloaders["train"],
+            self.dataloaders["valid"],
+            self.dataloaders["test"],
+        ) = self.accelerator.prepare(
+            self.pipeline.model,
+            self.dataloaders["train"],
+            self.dataloaders["valid"],
+            self.dataloaders["test"],
+        )
+
+    @staticmethod
+    def compute_metrics(prediction, batch):
+        """
+        TO DO!
+        """
+        predicted_flags = prediction["predicted_flags"]
+        predicted_sentences = prediction["predicted_sentences"]
+        predicted_sentence_ids = prediction["predicted_sentence_ids"]
+
+        label_flags = batch["label_flags"]
+        label_sentences = batch["label_sentences"]
+        label_sentence_ids = batch["label_sentence_ids"]
+        return {}
+        # accuracy = compute_accuracy(
+        #     reference_flags, reference_sent_id, candidate_flags, candidate_sent_id
+        # )
+
+        # # NLG Eval for corrections
+        # metrics = NLGMetrics()
+        # nlg_eval_results = metrics.compute(references, predictions, counters)
+
+        # return {
+        #     "accuracy": accuracy,
+        #     "R1F_subset_check": nlg_eval_results["R1F_subset_check"],
+        #     "R2F_subset_check": nlg_eval_results["R2F_subset_check"],
+        #     "RLF_subset_check": nlg_eval_results["RLF_subset_check"],
+        #     "R1FC": nlg_eval_results["R1FC"],
+        #     "R2FC": nlg_eval_results["R2FC"],
+        #     "RLFC": nlg_eval_results["RLFC"],
+        # }
 
     def _setup_run(self):
         ## Set group name by trainer name (i.e. zero_shot, fine_tune)
@@ -78,8 +130,59 @@ class Trainer:
 
     def test(self, split: str, log_metrics: bool = True):
         print(f"Testing on {split}")
+        predictions_df = pd.DataFrame(
+            columns=[
+                "text_id",
+                "original_text",
+                "prompted_text",
+                "label_flags",
+                "label_sentences",
+                "label_sentence_ids",
+                "predicted_flags",
+                "predicted_sentences",
+                "predicted_sentence_ids",
+                "original_prediction",
+            ]
+        )
+        self.pipeline.model.eval()
         for step, batch in enumerate(self.dataloaders[split]):
-            print(batch)
-            print(f" > Step: {step}; Loss: ")
+            print(f"Input: {batch}")
+            # Predict
+            prediction = self.pipeline.generate(batch)
+            print(f"Prediction: {prediction}")
+
+            # Evaluate
+            metrics = self.compute_metrics(prediction, batch)
+            # Log
+            ## To console
+            print(f" > Step: {step}; Metrics: {metrics}")
+            ## To wandb
+            self.accelerator.log(
+                metrics
+                | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
+            )
+
+            batch_df = pd.DataFrame(
+                {
+                    "text_id": batch["text_id"],
+                    "original_text": batch["original_text"],
+                    "prompted_text": batch["prompted_text"],
+                    "label_flags": batch["label_flags"],
+                    "label_sentences": batch["label_sentences"],
+                    "label_sentence_ids": batch["label_sentence_ids"],
+                    "predicted_flags": prediction["predicted_flags"],
+                    "predicted_sentences": prediction["predicted_sentences"],
+                    "predicted_sentence_ids": prediction["predicted_sentence_ids"],
+                    "original_prediction": prediction["original_prediction"],
+                }
+            )
+
+            # Append the batch DataFrame to the overall predictions DataFrame
+            predictions_df = pd.concat([predictions_df, batch_df], ignore_index=True)
+
+            # Save the updated DataFrame to a CSV file after each batch
+            predictions_df.to_csv(
+                os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False
+            )
             break
         pass
