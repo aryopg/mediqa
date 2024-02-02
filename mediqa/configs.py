@@ -11,12 +11,12 @@ class DataConfigs:
     train_data_filename: str = MISSING
     valid_data_filename: str = MISSING
     test_data_filename: str = MISSING
+    data_loader_configs: dict = MISSING
 
 
 @dataclass
 class ModelConfigs:
     name: str = MISSING
-    max_seq_length: int = MISSING
     configs: dict = MISSING
 
 
