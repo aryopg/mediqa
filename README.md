@@ -14,3 +14,26 @@
 ```bash
 conda env create -f environment.yml
 ```
+
+### Create an environment file
+
+To download from/upload to HF hub, create a `.env` file containing
+```
+- HF_DOWNLOAD_TOKEN
+- HF_UPLOAD_TOKEN
+- HF_USERNAME
+```
+
+### Dataset download
+
+Download datasets from the MEDIQA website (`Jan_26_2024_MS_Datasets` and `Jan_31_2024_UW_Dataset`), place them in a `data` folder such that the structure would look like this:
+```
+data/Jan_26_2024_MS_Datasets/...
+data/Jan_31_2024_UW_Dataset/...
+```
+
+### Experiment!
+
+```bash
+python scripts/main.py experiment=0_shot/mistral_7b_instruct
+```
