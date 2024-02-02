@@ -2,10 +2,11 @@ defaults:
   - base_data_config
 
 data_dir: data
-train_data_filename: 
-valid_data_filename: 
-test_data_filename:
-batch_size: 1
-num_workers: 8
-drop_last: false
-pin_memory: false
+train_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
+valid_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
+test_data_filename: Jan_31_2024_UW_Dataset/MEDIQA-CORR-2024-UW-ValidationSet-1-Full.csv
+data_loader_configs:
+  batch_size: 1
+  num_workers: 8
+  drop_last: false
+  pin_memory: false
