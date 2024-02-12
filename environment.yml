@@ -10,9 +10,9 @@ dependencies:
   - hydra-core
   - huggingface_hub
   - pytorch
-  - torchvision
-  - torchaudio
-  - cudatoolkit=11.4
+  # - torchvision
+  # - torchaudio
+  # - cudatoolkit=11.4
   - datasets
   - evaluate
   - pip

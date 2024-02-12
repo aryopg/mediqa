@@ -41,6 +41,7 @@ class TrainingConfigs:
     wandb_entity: str = MISSING
     debug: bool = False
     random_seed: int = 1234
+    api_key_path: str = MISSING
 
 
 def register_base_configs() -> None:

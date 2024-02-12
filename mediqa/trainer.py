@@ -6,7 +6,6 @@ import huggingface_hub
 import hydra
 import pandas as pd
 import torch
-import wandb
 from accelerate import Accelerator
 from accelerate.tracking import WandBTracker
 from huggingface_hub import HfApi
@@ -15,10 +14,13 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
+
 from .configs import TrainingConfigs
 from .dataset import MEDIQADataset
 from .metrics import NLGMetrics
 from .pipeline import ModelPipeline
+from .utils_chaeeun import modify_path_with_model_name
 
 
 class Trainer:
@@ -27,10 +29,13 @@ class Trainer:
 
         self.hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
         self.output_dir = self.hydra_cfg["runtime"]["output_dir"]
+        # self.output_dir = modify_path_with_model_name(self.output_dir, configs['model']['name'])
+        print(f"output_dir = {self.output_dir}")
 
         self.dataloaders = self._load_dataloaders()
         self.pipeline = self._load_pipeline()
-        self.accelerator = self._load_accelerator()
+        # self.accelerator = self._load_accelerator()
+        self._load_accelerator()
 
         if not configs.debug:
             self._setup_run()
@@ -60,6 +65,7 @@ class Trainer:
 
     def _load_accelerator(self) -> Accelerator:
         self.accelerator = Accelerator(log_with="wandb")
+        print(f"self.accelerator = {self.accelerator}")
         (
             self.pipeline.model,
             self.dataloaders["train"],
@@ -77,13 +83,13 @@ class Trainer:
         """
         TO DO!
         """
-        predicted_flags = prediction["predicted_flags"]
-        predicted_sentences = prediction["predicted_sentences"]
-        predicted_sentence_ids = prediction["predicted_sentence_ids"]
+        # predicted_flags = prediction["predicted_flags"]
+        # predicted_sentences = prediction["predicted_sentences"]
+        # predicted_sentence_ids = prediction["predicted_sentence_ids"]
 
-        label_flags = batch["label_flags"]
-        label_sentences = batch["label_sentences"]
-        label_sentence_ids = batch["label_sentence_ids"]
+        # label_flags = batch["label_flags"]
+        # label_sentences = batch["label_sentences"]
+        # label_sentence_ids = batch["label_sentence_ids"]
         return {}
         # accuracy = compute_accuracy(
         #     reference_flags, reference_sent_id, candidate_flags, candidate_sent_id
@@ -104,6 +110,9 @@ class Trainer:
         # }
 
     def _setup_run(self):
+
+        print(f"self.accelerator in _setup_run(self)= {self.accelerator}")
+
         ## Set group name by trainer name (i.e. zero_shot, fine_tune)
         self.wandb_group_name = self.configs.trainer.name
 
@@ -145,44 +154,58 @@ class Trainer:
             ]
         )
         self.pipeline.model.eval()
+        # import pandas as pd
+        # import os
+
+        # Initialize an empty DataFrame for all predictions
+        predictions_df = pd.DataFrame()
+
         for step, batch in enumerate(self.dataloaders[split]):
-            print(f"Input: {batch}")
+
+
+            print(f"batch = {batch}")
+            print(f"type(batch) = {type(batch)}")
+
             # Predict
             prediction = self.pipeline.generate(batch)
             print(f"Prediction: {prediction}")
 
             # Evaluate
             metrics = self.compute_metrics(prediction, batch)
-            # Log
-            ## To console
+            # Log to console
             print(f" > Step: {step}; Metrics: {metrics}")
-            ## To wandb
-            self.accelerator.log(
-                metrics
-                | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
-            )
+            # Log to wandb (assuming you have a way to convert predictions and batch to a dataframe)
+            # self.accelerator.log(metrics | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)})
 
-            batch_df = pd.DataFrame(
-                {
-                    "text_id": batch["text_id"],
-                    "original_text": batch["original_text"],
-                    "prompted_text": batch["prompted_text"],
-                    "label_flags": batch["label_flags"],
-                    "label_sentences": batch["label_sentences"],
-                    "label_sentence_ids": batch["label_sentence_ids"],
-                    "predicted_flags": prediction["predicted_flags"],
-                    "predicted_sentences": prediction["predicted_sentences"],
-                    "predicted_sentence_ids": prediction["predicted_sentence_ids"],
-                    "original_prediction": prediction["original_prediction"],
-                }
-            )
+            # Assuming 'prediction' is a list of predicted values, you need to match its structure to your batch data
+            batch_df = pd.DataFrame({
+                "text_id": batch["text_id"],
+                "original_text": batch["original_text"],
+                "prompted_text": batch["prompted_text"],
+                "label_flags": batch["label_flags"],
+                "label_sentences": batch["label_sentences"],
+                "label_sentence_ids": batch["label_sentence_ids"],
+                # Update these lines to correctly reflect your prediction structure
+                # "predicted_flags": prediction["predicted_flags"],
+                # "predicted_sentences": prediction["predicted_sentences"],
+                # "predicted_sentence_ids": prediction["predicted_sentence_ids"],
+                # "original_prediction": prediction["original_prediction"],
+                # # Example of adding a new column for a single prediction, adjust based on actual prediction structure
+                "prediction": prediction
+            })
 
             # Append the batch DataFrame to the overall predictions DataFrame
             predictions_df = pd.concat([predictions_df, batch_df], ignore_index=True)
 
             # Save the updated DataFrame to a CSV file after each batch
-            predictions_df.to_csv(
-                os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False
-            )
-            break
-        pass
+            predictions_df.to_csv(os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False)
+
+            # # Append the current batch DataFrame directly to the CSV file
+            # batch_df.to_csv(output_csv_path, mode='a', header=False, index=False)
+
+
+            # If you want to stop after the first batch (for testing), remove this line for the actual run
+
+            num_test_steps = 5
+            if step >= num_test_steps:
+                break

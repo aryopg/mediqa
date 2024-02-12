@@ -3,3 +3,7 @@ defaults:
   - override /model: mistrallite_7b
   - override /data: mediqa
   - override /trainer: 0_shot
+
+hydra:
+  run:
+    dir: outputs/mistrallite_7b/${now:%Y-%m-%d}/${now:%H-%M-%S}

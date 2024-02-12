@@ -165,3 +165,7 @@ wandb/
 artifacts/
 
 *.DS_Store
+
+
+# local files
+scribble.ipynb

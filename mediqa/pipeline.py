@@ -78,14 +78,30 @@ class ModelPipeline:
         # TODO: postprocess the prediction
         prediction = self.postprocess_prediction(decoded_text)
 
-        return {
+        # return {
+        #     "input_length": model_input.size(1),
+        #     "max_new_tokens": max_new_tokens,
+        #     "predicted_flags": prediction["predicted_flags"],
+        #     "predicted_sentences": prediction["predicted_sentences"],
+        #     "predicted_sentence_ids": prediction["predicted_sentence_ids"],
+        #     "original_prediction": decoded_text,
+        # }
+    
+
+        postprocess_implemented = False
+
+        if not postprocess_implemented:
+            # print(f"type(answer) = {type(answer)}")
+            return prediction
+        else:
+            return {
             "input_length": model_input.size(1),
             "max_new_tokens": max_new_tokens,
             "predicted_flags": prediction["predicted_flags"],
             "predicted_sentences": prediction["predicted_sentences"],
             "predicted_sentence_ids": prediction["predicted_sentence_ids"],
             "original_prediction": decoded_text,
-        }
+            }
 
     @staticmethod
     def postprocess_prediction(answer):
@@ -93,8 +109,15 @@ class ModelPipeline:
         TO DO
         """
         # TODO!
-        return {
-            "predicted_flags": "",
-            "predicted_sentences": "",
-            "predicted_sentence_ids": "",
-        }
+
+        postprocess_implemented = False
+
+        if not postprocess_implemented:
+            print(f"type(answer) = {type(answer)}")
+            return answer
+        else:
+            return {
+                "predicted_flags": "",
+                "predicted_sentences": "",
+                "predicted_sentence_ids": "",
+            }

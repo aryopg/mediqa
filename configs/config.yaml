@@ -3,15 +3,17 @@ defaults:
   - data: mediqa
   - model: mistral_7b_instruct
   - trainer: 0_shot
-  - prompt: prompt_0
+  - prompt: prompt_none
   - experiment: null
   - _self_
 
-hydra:
-  output_subdir: null
+# hydra:
+#   output_subdir: null
 random_seed: 1234
 
 wandb_project: MEDIQA
-wandb_entity: aryopg
+wandb_entity: clee1997
 
-debug: false
+debug: true
+
+api_key_path: /Users/chaeeunlee/Documents/VSC_workspaces/mediqa/api_keys/openai_key.yaml

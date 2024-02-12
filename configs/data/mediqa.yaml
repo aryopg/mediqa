@@ -2,9 +2,17 @@ defaults:
   - base_data_config
 
 data_dir: data
-train_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
-valid_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
-test_data_filename: Jan_31_2024_UW_Dataset/MEDIQA-CORR-2024-UW-ValidationSet-1-Full.csv
+# train_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
+# valid_data_filename: Jan_26_2024_MS_Datasets/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
+# test_data_filename: Jan_31_2024_UW_Dataset/MEDIQA-CORR-2024-UW-ValidationSet-1-Full.csv
+
+# Feb_1_2024_MS_Train_Val_Datasets
+
+train_data_filename: /Users/chaeeunlee/Documents/VSC_workspaces/mediqa/data/Feb_1_2024_MS_Train_Val_Datasets/MS-train-augmented.csv # Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
+valid_data_filename: Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
+test_data_filename: Feb_5_2024_UW_Validation_Set_Updated/MEDIQA-CORR-2024-UW-ValidationSet-1-Full_Feb.csv
+
+
 data_loader_configs:
   batch_size: 1
   num_workers: 8

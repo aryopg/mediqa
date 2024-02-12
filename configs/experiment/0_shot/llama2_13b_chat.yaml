@@ -3,3 +3,7 @@ defaults:
   - override /model: llama2_13b_chat
   - override /data: mediqa
   - override /trainer: 0_shot
+
+hydra:
+  run:
+    dir: outputs/llama2_13b_chat/${now:%Y-%m-%d}/${now:%H-%M-%S}

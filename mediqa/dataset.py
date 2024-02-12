@@ -61,7 +61,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
             error_flag_column = "Error_flag"
 
         for _, row in df.iterrows():
-            original_texts += [str(row["Sentences"])]
+            original_texts += [str(row["Masked Text"])]# ["Sentences"])]
             corrected_sentence = row["Corrected Sentence"]
 
             if not isinstance(corrected_sentence, str):
@@ -83,6 +83,8 @@ class MEDIQADataset(torch.utils.data.Dataset):
             "label_flags": label_flags,
             "label_sentences": label_sentences,
             "label_sentence_ids": label_sentence_ids,
+
+            'error_span': df['Error Span'].tolist() # list of tuples
         }
 
     def __getitem__(self, idx):
@@ -97,6 +99,8 @@ class MEDIQADataset(torch.utils.data.Dataset):
             "label_flags": self.data["label_flags"][idx],
             "label_sentences": self.data["label_sentences"][idx],
             "label_sentence_ids": self.data["label_sentence_ids"][idx],
+
+            'error_span': self.data["error_span"][idx],
         }
 
     def __len__(self):
