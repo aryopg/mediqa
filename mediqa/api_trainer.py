@@ -22,7 +22,6 @@ from .configs import TrainingConfigs
 from .dataset import MEDIQADataset
 from .metrics import NLGMetrics
 from .pipeline import ModelPipeline
-from .utils_chaeeun import modify_path_with_model_name
 
 
 class APITrainer:
