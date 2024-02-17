@@ -1,6 +1,9 @@
+import ast
 import json
 import math
 import os
+import pdb
+import time
 
 import huggingface_hub
 import hydra
@@ -24,7 +27,16 @@ from .metrics import NLGMetrics
 from .pipeline import ModelPipeline
 
 
-class APITrainer:
+def dicstr_to_dic(dicstr):
+    return ast.literal_eval(dicstr.replace("\n", ""))
+
+
+def dic_of_list_as_single_value(dic):
+    for key in dic:
+        dic[key] = [' $ '.join(dic[key])] if isinstance(dic[key], list) else [dic[key]]
+    return dic
+
+class APITrainer: 
     def __init__(self, configs: TrainingConfigs):
 
         self.configs = configs
@@ -70,8 +82,7 @@ class APITrainer:
 
         return dataloaders
 
-    def _load_chat_pipeline(self): #-> ModelPipeline:
-        # return ModelPipeline(self.configs.model)
+    def _load_chat_pipeline(self): 
         return APIPipeline(self.configs.model, self.api_key)
 
     @staticmethod
@@ -82,71 +93,70 @@ class APITrainer:
         prediction: API output converted to JSON object. 
         """
 
+        # prediction as of now is 
+
         return {}
 
     def train(self):
         pass
 
-    def test(self, split: str, log_metrics: bool = True):
+    def test(self, split: str, log_metrics: bool = True, mode='annotate'):
 
         print(f"Testing on {split}")
 
-        predictions_df = pd.DataFrame(
-            columns=[
-                "text_id",
-                "original_text",
-                "prompted_text",
-                "label_flags",
-                "label_sentences",
-                "label_sentence_ids",
-                "predicted_flags",
-                "predicted_sentences",
-                "predicted_sentence_ids",
-                "original_prediction",
-            ]
-        )
+        prev_df = pd.DataFrame()
 
-        predictions_df = pd.DataFrame()
 
-        for step, batch in enumerate(self.dataloaders[split]):
+        for step, batch in enumerate(self.dataloaders[split]): 
 
-            # Predict
-            prediction, prompt = self.pipeline.chat(batch, apply_template = True)
-            # print(f"pred_res = {pred_res}")
-            print(f"Prediction: {prediction}")
+            predictions, prompts = self.pipeline.chat(batch, apply_template=True, mode=mode)
 
-            # Evaluate
-            metrics = self.compute_metrics(prediction, batch)
-            # Log to console
-            print(f" > Step: {step}; Metrics: {metrics}")
+            batch_df = pd.DataFrame(batch)
 
-            batch_df = pd.DataFrame({
-                "text_id": batch["text_id"],
-                "original_text": batch["original_text"],
-                "prompted_text": prompt, # batch["prompted_text"],
-                "label_flags": batch["label_flags"],
-                "label_sentences": batch["label_sentences"],
-                "label_sentence_ids": batch["label_sentence_ids"],
+            if mode=='annotate':
 
-                # "correction": batch["correction"],
-                'error_span': batch["error_span"],
-                # Update these lines to correctly reflect your prediction structure
-                # "predicted_flags": prediction["predicted_flags"],
-                # "predicted_sentences": prediction["predicted_sentences"],
-                # "predicted_sentence_ids": prediction["predicted_sentence_ids"],
-                # "original_prediction": prediction["original_prediction"],
-                # # Example of adding a new column for a single prediction, adjust based on actual prediction structure
-                "prediction": prediction
-            })
+                predictions = dicstr_to_dic(predictions[0])
 
-            # Append the batch DataFrame to the overall predictions DataFrame
-            predictions_df = pd.concat([predictions_df, batch_df], ignore_index=True)
+                res_dict = {
+                    'prompt': [prompts[0][0]], # ValueError: If using all scalar values, you must pass an index
+                    'sys_prompt': [prompts[0][1]],
+                }
 
-            # Save the updated DataFrame to a CSV file after each batch
-            predictions_df.to_csv(os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False)
+                predictions, res_dict = dic_of_list_as_single_value(predictions), res_dict
+                res_df = pd.concat([pd.DataFrame(res_dict), pd.DataFrame(predictions)], axis=1)#, ignore_index=True)
+           
+            elif mode=='detect':
+                
+                predictions = [dicstr_to_dic(prediction) for prediction in predictions]
 
-            # If you want to stop after the first batch (for testing), remove this line for the actual run
+                res_dict = {}
+                for pred_idx, pred_dic in enumerate(predictions):
 
-            num_test_steps = 100
+                    res_dict[f'Prompt for {prompts[pred_idx][0]}'] = [prompts[pred_idx][1]]
+                    res_dict[f'Sys Prompt for {prompts[pred_idx][0]}'] = [prompts[pred_idx][2]]
+
+                    for key, val in pred_dic.items(): # sts reasoning final answer
+                        colname = f"{key} for {prompts[pred_idx][0]}" # for treatment 1
+                        res_dict[colname] = [val] if isinstance(val, str) else [" ".join(val)]
+
+                res_df = pd.DataFrame(res_dict)
+
+            res_df = pd.concat([batch_df, res_df], axis=1)#, ignore_index=True) 
+            res_df = pd.concat([prev_df, res_df], ignore_index=True)
+            prev_df = res_df
+       
+            res_df.to_csv(os.path.join(self.output_dir, f"{mode}_output_{split}.csv"), index=False)
+
+            print(f"CSV file saved after step!")
+
+            if step % 20 == 0:
+                
+                print("Sleeping for 30 seconds after 20 generations...")
+                time.sleep(30)  # Sleep for 30 seconds
+
+
+            num_test_steps = 1000
+      
             if step >= num_test_steps:
+                print(f"break statement in Training loop after {step} steps!")
                 break

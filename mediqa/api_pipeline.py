@@ -6,9 +6,10 @@ from openai import OpenAI
 
 from mediqa.configs import ModelConfigs
 
-
 # "gpt-3.5-turbo"
+
 class APIPipeline:
+        # "gpt-3.5-turbo"
     def __init__(self, model_configs: ModelConfigs, api_key, prompt_template="{}", model_name="gpt-4", settings=None):
         self.api_key = api_key
         self.model_name = model_name
@@ -28,50 +29,131 @@ class APIPipeline:
             "presence_penalty": 0.0,
         }
 
-    def construct_prompt(self, batch, mode='probe'):
+    def construct_prompts(self, batch, mode='annotate'):
 
-        if mode=='probe':
-            self.prompt_template = "{}\n\n-> what should <BLANK> be replaced with if '{}' is incorrect?"
-            # print(f"type(batch['correction'][0]) = {type(batch['correction'][0])}")
-            prompt = self.prompt_template.format(batch["prompted_text"][0], batch['error_span'][0])
-        # elif mode=='cot':
-        # elif mode=='nle':
+        if mode=='detect':
+            
+            prompts = []
+            sys_prompt = "You are a clinician reviewing a clinical note that may or may not contain an error. Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"
 
-        return prompt
+            categories = {
+                'interpretation of exam results': 'interpretation of exam result', 
+                'diagnoses': 'diagnosis',
+                'treatments': 'treatment'
+            }
 
-    def chat(self, batch, apply_template=True, post_process=False):
+            self.prompt_template = "Consider the following clinical note:\n\n{}\n\n-> Was '{}' the best possible {} here? Let’s think step-by-step. Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"
 
-        prompt = self.construct_prompt(batch) if apply_template else batch["prompted_text"]
+            for category in categories.keys():
+                for sub_phrases in batch[category]:
 
-        print(f"prompt = {prompt}")
+                    if not isinstance(sub_phrases, str):
+                        continue
 
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": self.model_configs.configs.system_prompt}, # You will be provided with unstructured data, and your task is to parse it into CSV format.
-                    {"role": "user", "content": prompt}
-                ],
-                **self.settings
-            )
+                    sub_phrases = sub_phrases.split("$")
+                    sub_phrases = [sub_phrase.strip() for sub_phrase in sub_phrases]
 
-            print(f"completion = {completion}")
+                    # import pdb; pdb.set_trace()
 
-            if completion and completion.choices:
-                # generated_text = completion['choices'][0]['message']['content']
-                generated_text = completion.choices[0].message.content
-                # return generated_text
-            else:
-                return "No response generated."
-        except Exception as e:
-            return f"Error: {str(e)}"
+                    for idx, sub_phrase in enumerate(sub_phrases):
+
+                        key = f"{category} {idx}"
+
+                        prompt = self.prompt_template.format(batch['Text'], sub_phrase, categories[category])
+                        
+                        prompts.append((key, prompt, sys_prompt))
+
+                    # (Pdb) [prompt[0] for prompt in prompts]
+                    # ['interpretation of exam results 0', 'treatments 0', 'treatments 1']
+
+        elif mode=='annotate':
+
+            self.prompt_template = "The following clinical text contains factual history of patient illness, medical exam results, interpretation of exam results, diagnoses, and treatments. I want you to classify each sentence (or each parts of sentences) in the paragraph into whether they describe factual history of present illness, medical exam results, diagnoses, or treatments.\nOutput your response in JSON format with keys “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments”. Note that “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments” may not appear in the original text in the said order.\n\n{}"
+            prompt = self.prompt_template.format(batch['Text'])
+            sys_prompt = "You are a clinician reviewing a clinical note that may or may not contain an error. Output your response in JSON format with keys “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments”."
+
+            prompts=[(prompt, sys_prompt)]
+
+        return prompts
+    
+    def chat(self, batch, apply_template=True, post_process=False, mode='annotate'):
+
+        prompt_list = self.construct_prompts(batch, mode=mode)
+
+        preds_list = [] 
+
+        if mode=='annotate':
+            for prompt, sys_prompt in prompt_list:
+
+                try:
+                    completion = self.client.chat.completions.create(
+                        model=self.model_name,
+                        messages=[
+                            {"role": "system", "content": sys_prompt}, # You will be provided with unstructured data, and your task is to parse it into CSV format.
+                            {"role": "user", "content": prompt}
+                        ],
+                        **self.settings
+                    )
+
+                    # print(f"completion = {completion}")
+                    print("generating...")
+
+                    if completion and completion.choices:
+                        # generated_text = completion['choices'][0]['message']['content']
+                        generated_text = completion.choices[0].message.content
+                        # return generated_text
+                    else:
+                        generated_text = "No response from API call."
+                except Exception as e:
+                    generated_text = f"API Call Unsuccessful. Error: {str(e)}"
+
+                preds_list.append(generated_text)
+
+        elif mode=='detect':
+
+            for key, prompt, sys_prompt in prompt_list:
+                # import pdb; pdb.set_trace()
+                try:
+                    completion = self.client.chat.completions.create(
+                        model=self.model_name,
+                        messages=[
+                            {"role": "system", "content": sys_prompt}, # You will be provided with unstructured data, and your task is to parse it into CSV format.
+                            {"role": "user", "content": prompt}
+                        ],
+                        **self.settings
+                    )
+
+                    # print(f"completion = {completion}")
+                    print("generating...")
+
+                    if completion and completion.choices:
+                        # generated_text = completion['choices'][0]['message']['content']
+                        generated_text = completion.choices[0].message.content
+                        print(f"generated type = {type(generated_text)}")
+                        # return generated_text
+                    else:
+                        generated_text = "No response from API call."
+                except Exception as e:
+                    generated_text = f"API Call Unsuccessful. Error: {str(e)}"
+
+                preds_list.append(generated_text)
         
-        pred =  self.post_process(generated_text) if post_process else generated_text
-
-        return pred, prompt
+        preds =  self.post_process(preds_list) if post_process else preds_list
         
-    def post_process(self, json_in_str):
 
-        json_data = json.loads(json_in_str)
+        return preds, prompt_list # list of 9 prompt pairs and preds in json format
+    
+    def post_process(self, list_json_in_str):
+        """ input string is  """
+        json_dict_list = []
+        for json_in_str in list_json_in_str:
+            try:
+                json_data = json.loads(json_in_str) 
+                # handle error here. 
+            except:
+                json_data = json_in_str
 
-        return json_data
+            json_dict_list.append(json_data)
+
+
+        return json_dict_list

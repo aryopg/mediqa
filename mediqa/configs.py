@@ -9,6 +9,7 @@ from omegaconf import MISSING
 class DataConfigs:
     data_dir: str = MISSING
     train_data_filename: str = MISSING
+    train_annotated_data_filename: str = MISSING
     valid_data_filename: str = MISSING
     test_data_filename: str = MISSING
     data_loader_configs: dict = MISSING

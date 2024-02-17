@@ -4,6 +4,7 @@ defaults:
 name: 0_shot
 configs:
   epochs: 0
+  mode: detect
   gradient_accumulation_steps: 0
   fusion_strategy: ""
   explicit_evidence: False

@@ -18,6 +18,66 @@ TASK2ID = {
 }
 
 
+def clean_string(s):
+    if isinstance(s, str):
+        return s.replace("\n", " ").replace("\r", " ").strip()
+    else:
+        return s
+    
+def clean_string_col(col):
+    if col.dtype == 'object':  # Check if the column datatype is 'object' (usually indicates strings)
+        return col.str.replace("\n", " ").str.replace("\r", " ").str.strip()
+    else:
+        return col
+    
+
+# Index(['Unnamed: 0', 'Text ID', 'Text', 'Sentences', 'Error Flag',
+#     'Error Sentence ID', 'Error Sentence', 'Corrected Sentence',
+#     'Corrected Text'],
+#     dtype='object')
+    
+
+
+class AnnotatedDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        data_configs: DataConfigs,
+        # prompt_configs: PromptConfigs,
+        # trainer_configs: TrainerConfigs,
+        split: str,
+        **kwargs,
+    ):
+        
+        self.split = split
+
+        self.data_dir = data_configs.data_dir
+        self.data_filename = os.path.join(
+            self.data_dir, getattr(data_configs, f"{split}_data_filename")
+        )
+
+        # Prepare data
+        self.df = self.parse_data()
+
+    def parse_data(self) -> dict:
+
+        df = pd.read_csv(self.data_filename)
+
+        # df.fillna("NA", inplace=True)
+        str_cols = ['Text', 'Sentences', 'Error Sentence', 'Corrected Sentence', 'Corrected Text']
+        df[str_cols].fillna("NA")
+        df[str_cols].apply(clean_string_col)
+
+        for col in ['treatments', 'diagnoses', 'exam_interpretation', 'exam_results history']:
+            df[col] = df[col].apply(lambda x: [x] if isinstance(x, str) else ["NA"] if pd.isna(x) else x)
+
+        return df
+    
+    def __getitem__(self, idx):
+
+        return self.df.iloc[idx].to_dict()
+
+
+
 class MEDIQADataset(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -29,79 +89,34 @@ class MEDIQADataset(torch.utils.data.Dataset):
     ):
         self.data_configs = data_configs
         self.prompt_configs = prompt_configs
-        self.trainer_configs = trainer_configs
+        self.trainer_configs = trainer_configs.configs
 
         self.split = split
 
-        self.data_dir = data_configs.data_dir
-        self.data_filename = os.path.join(
-            self.data_dir, getattr(data_configs, f"{split}_data_filename")
-        )
+        filename = f"{split}_data_filename" if self.trainer_configs=='annotate' else f"{split}_annotated_data_filename"
+        self.data_filename = getattr(data_configs, filename) 
+        print(f"self.data_filename in MEDIQADataset: {self.data_filename}")
 
         # Prepare data
-        self.data = self.parse_data()
+        self.df = self.parse_data()
 
         self.prompt_template = self.prompt_configs.prompt_template
 
     def parse_data(self) -> dict:
-        """Parsing reference file path."""
+
+        print(f"self.data_filename in MEDIQADataset parse_data: {self.data_filename}")
         df = pd.read_csv(self.data_filename)
 
-        text_ids = df["Text ID"].tolist()
+        str_cols = ['Text', 'Sentences', 'Error Sentence', 'Corrected Sentence', 'Corrected Text']
+        df[str_cols].fillna("NA")
+        df[str_cols].apply(clean_string_col)
 
-        original_texts = []
-        label_flags = []
-        label_sentences = []
-        label_sentence_ids = []
-
-        # Handle UW and MS datasets difference
-        if "Error Flag" in df.columns:
-            error_flag_column = "Error Flag"
-        else:
-            error_flag_column = "Error_flag"
-
-        for _, row in df.iterrows():
-            original_texts += [str(row["Masked Text"])]# ["Sentences"])]
-            corrected_sentence = row["Corrected Sentence"]
-
-            if not isinstance(corrected_sentence, str):
-                if math.isnan(corrected_sentence):
-                    corrected_sentence = "NA"
-                else:
-                    corrected_sentence = str(corrected_sentence)
-                    corrected_sentence = (
-                        corrected_sentence.replace("\n", " ").replace("\r", " ").strip()
-                    )
-
-            label_flags += [str(row[error_flag_column])]
-            label_sentences += [corrected_sentence]
-            label_sentence_ids += [str(row["Error Sentence ID"])]
-
-        return {
-            "text_ids": text_ids,
-            "original_texts": original_texts,
-            "label_flags": label_flags,
-            "label_sentences": label_sentences,
-            "label_sentence_ids": label_sentence_ids,
-
-            'error_span': df['Error Span'].tolist() # list of tuples
-        }
+        return df
 
     def __getitem__(self, idx):
-        return {
-            "text_id": self.data["text_ids"][idx],
-            "original_text": self.data["original_texts"][idx],
-            "prompted_text": self.prompt_template.format(
-                icl_example="",
-                clinical_sentences=self.data["original_texts"][idx],
-                cot_prompt="",
-            ),
-            "label_flags": self.data["label_flags"][idx],
-            "label_sentences": self.data["label_sentences"][idx],
-            "label_sentence_ids": self.data["label_sentence_ids"][idx],
 
-            'error_span': self.data["error_span"][idx],
-        }
+        return self.df.iloc[idx].to_dict()
+
 
     def __len__(self):
-        return len(self.data["text_ids"])
+        return self.df.shape[0]
