@@ -151,7 +151,9 @@ class APITrainer:
 
             if step % 20 == 0:
                 
+                print(f"step = {step}")
                 print("Sleeping for 30 seconds after 20 generations...")
+                print()
                 time.sleep(30)  # Sleep for 30 seconds
 
 
