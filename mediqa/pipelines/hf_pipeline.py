@@ -6,15 +6,17 @@ from omegaconf import OmegaConf
 from torch.nn import functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenizer
 
-from mediqa.configs import ModelConfigs
+from ..configs import ModelConfigs
+from .base_pipeline import BasePipeline
 
 
-class ModelPipeline:
+class HFPipeline(BasePipeline):
     def __init__(
         self,
         model_configs: ModelConfigs,
     ):
-        self.model_configs = model_configs
+        super().__init__(model_configs)
+
         self.model = AutoModelForCausalLM.from_pretrained(
             model_configs.configs.model_name_or_path,
             torch_dtype=torch.float16,
@@ -24,13 +26,6 @@ class ModelPipeline:
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_configs.configs.model_name_or_path
         )
-
-        # Only LLaMA that can use system prompt
-        self.system_prompt = None
-        if "llama" in self.model_configs.configs.model_name_or_path.lower():
-            self.system_prompt = model_configs.configs.system_prompt
-
-        self.max_seq_len = model_configs.configs.max_seq_len
 
     def _tokenize_input(self, inputs):
         prompt = []
@@ -49,6 +44,7 @@ class ModelPipeline:
         inputs,
         use_cot=False,
     ) -> Tuple[List[List[int]], Optional[List[List[float]]]]:
+        self.model.eval()
         # Most likely we're just gonna do batch size = 1
         model_input = self._tokenize_input(inputs)[0]
 

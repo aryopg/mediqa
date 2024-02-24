@@ -86,15 +86,117 @@ class MEDIQADataset(torch.utils.data.Dataset):
         }
 
     def __getitem__(self, idx):
+        icl_texts = []
+        icl_labels = []
+        if self.trainer_configs.configs.num_in_context_examples > 0:
+            if self.trainer_configs.configs.num_in_context_examples % 2 == 0:
+                # If number of ICL examples is divisible by 2, provide half positive and half negative examples
+                # (this can be optimised, but future aryo's problem :p)
+                pos_icl_candidates = []
+                neg_icl_candidates = []
+                for i, label_flag in enumerate(self.data["label_flags"]):
+                    if i != idx:
+                        if int(label_flag) == 1:
+                            pos_icl_candidates += [i]
+                        elif int(label_flag) == 0:
+                            neg_icl_candidates += [i]
+                pos_icl_example_ids = np.random.choice(
+                    pos_icl_candidates,
+                    self.trainer_configs.configs.num_in_context_examples // 2,
+                )
+                neg_icl_example_ids = np.random.choice(
+                    neg_icl_candidates,
+                    self.trainer_configs.configs.num_in_context_examples // 2,
+                )
+
+                for icl_example_id in pos_icl_example_ids:
+                    icl_texts += [
+                        self.prompt_template.format(
+                            clinical_sentences=self.data["original_texts"][
+                                icl_example_id
+                            ],
+                            cot_prompt="",
+                        )
+                    ]
+
+                    icl_labels += [
+                        {
+                            "label_flags": int(
+                                self.data["label_flags"][icl_example_id]
+                            ),
+                            "label_sentences": self.data["label_sentences"][
+                                icl_example_id
+                            ],
+                            "label_sentence_ids": self.data["label_sentence_ids"][
+                                icl_example_id
+                            ],
+                        }
+                    ]
+
+                for icl_example_id in neg_icl_example_ids:
+                    icl_texts += [
+                        self.prompt_template.format(
+                            clinical_sentences=self.data["original_texts"][
+                                icl_example_id
+                            ],
+                            cot_prompt="",
+                        )
+                    ]
+                    icl_labels += [
+                        {
+                            "label_flags": int(
+                                self.data["label_flags"][icl_example_id]
+                            ),
+                            "label_sentences": self.data["label_sentences"][
+                                icl_example_id
+                            ],
+                            "label_sentence_ids": self.data["label_sentence_ids"][
+                                icl_example_id
+                            ],
+                        }
+                    ]
+            else:
+                # Randomly sample in-context examples whose id is different from the current one
+                icl_candidates = [
+                    i for i in range(len(self.data["text_ids"])) if i != idx
+                ]
+                icl_example_ids = np.random.choice(
+                    icl_candidates, self.trainer_configs.configs.num_in_context_examples
+                )
+
+                for icl_example_id in icl_example_ids:
+                    icl_texts += [
+                        self.prompt_template.format(
+                            clinical_sentences=self.data["original_texts"][
+                                icl_example_id
+                            ],
+                            cot_prompt="",
+                        )
+                    ]
+                    icl_labels += [
+                        {
+                            "label_flags": int(
+                                self.data["label_flags"][icl_example_id]
+                            ),
+                            "label_sentences": self.data["label_sentences"][
+                                icl_example_id
+                            ],
+                            "label_sentence_ids": self.data["label_sentence_ids"][
+                                icl_example_id
+                            ],
+                        }
+                    ]
+
         return {
             "text_id": self.data["text_ids"][idx],
             "original_text": self.data["original_texts"][idx],
+            "icl_texts": icl_texts,
+            "icl_labels": icl_labels,
             "prompted_text": self.prompt_template.format(
-                icl_example="",
                 clinical_sentences=self.data["original_texts"][idx],
                 cot_prompt="",
             ),
-            "label_flags": self.data["label_flags"][idx],
+            "label_flags": int(self.data["label_flags"][idx]),
             "label_sentences": self.data["label_sentences"][idx],
             "label_sentence_ids": self.data["label_sentence_ids"][idx],
         }
