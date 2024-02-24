@@ -30,5 +30,6 @@ dependencies:
   - pynvml
   - transformers
   - tokenizers
+  - openai
   - pip:
     - rouge

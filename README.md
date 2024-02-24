@@ -22,7 +22,10 @@ To download from/upload to HF hub, create a `.env` file containing
 - HF_DOWNLOAD_TOKEN
 - HF_UPLOAD_TOKEN
 - HF_USERNAME
+- OPENAI_API_KEY
 ```
+
+Check `.env.example`. You can use it to create your own `.env` file.
 
 ### Dataset download
 
@@ -35,5 +38,5 @@ data/Jan_31_2024_UW_Dataset/...
 ### Experiment!
 
 ```bash
-python scripts/main.py experiment=0_shot/mistral_7b_instruct
+python scripts/main.py experiment=2_shot/gpt35
 ```
