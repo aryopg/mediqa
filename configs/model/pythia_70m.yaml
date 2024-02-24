@@ -4,6 +4,7 @@ defaults:
 name: Pythia-70m
 configs:
   model_name_or_path: EleutherAI/pythia-70m
+  model_type: hf
   max_seq_len: 2048
   temperature: 0.001
   top_p: 0

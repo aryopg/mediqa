@@ -4,6 +4,7 @@ defaults:
 name: Meditron-70b
 configs:
   model_name_or_path: epfl-llm/meditron-70b
+  model_type: hf
   max_seq_len: 2048
   temperature: 0.001
   top_p: 0
