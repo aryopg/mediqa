@@ -6,7 +6,6 @@ import huggingface_hub
 import hydra
 import pandas as pd
 import torch
-import wandb
 from accelerate import Accelerator
 from accelerate.tracking import WandBTracker
 from huggingface_hub import HfApi
@@ -14,6 +13,8 @@ from omegaconf import OmegaConf
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+import wandb
 
 from .configs import TrainingConfigs
 from .dataset import MEDIQADataset
@@ -198,7 +199,6 @@ class Trainer:
             predictions_df.to_csv(
                 os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False
             )
-            break
 
         # Evaluate
         metrics = self.compute_metrics(predictions_df)
