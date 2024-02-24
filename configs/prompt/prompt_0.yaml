@@ -1,4 +1,4 @@
 defaults:
   - base_prompt_config
 
-prompt_template: "{icl_example}Consider this clinical text:\n\n{clinical_sentences}\n\nDoes it make sense? If not, which sentence that is incorrect and how would you fix it?\nAnswer: {cot_prompt}"
+prompt_template: "Clinical text:\n\n{clinical_sentences}\n\nIdentify 1 incorrect sentence in the clinical text, or confirm if all sentences are correct. If there is 1 incorrect sentence, how would you fix it? {cot_prompt}\nAnswer:"
