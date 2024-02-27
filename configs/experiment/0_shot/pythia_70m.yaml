@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-  - override /model: pythia_70m
-  - override /data: mediqa
-  - override /trainer: 0_shot
-hydra:
-  run:
-    dir: outputs/pythia_70m/${now:%Y-%m-%d}/${now:%H-%M-%S}
-

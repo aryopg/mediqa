@@ -1,0 +1,46 @@
+# ## 'annotate'
+
+# prompt_base: "The following clinical text contains factual history of patient illness, medical exam results, interpretation of exam results, diagnoses, and treatments. Your job is to classify each sentence (or each parts of sentences) in the clinical text into whether they describe factual history of present illness, medical exam results, diagnoses, or treatments."
+# prompt_data: "\n\nClinical Text:\n\n{full_text}"
+# prompt_format: "Output your response in JSON format with keys “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments”. Note that “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments” may not appear in the original text in the said order."
+
+# sys_prompt_base: "You are a clinician reviewing a clinical note that may or may not contain an error."
+# sys_prompt_format: ${prompt_format}
+
+
+# ## 'sentence_correction_without_span'
+
+# prompt_base: "In the provided clinical text, the sentence '{error_sentence}' is identified to contain a clinical error. Please review this sentence with a focus on its medical content and correct it to be medically accurate. Provide the corrected sentence as your output."
+# prompt_data: "\n\nClinical Text:\n\n{full_text}"
+# prompt_format: "Output your response in JSON format with a key 'Corrected Sentence'."
+
+# sys_prompt_base: "You are a clinician reviewing a clinical note that contains exactly one sentence with medical error. Identify and return this single error sentence as your response."
+# sys_prompt_format: ${prompt_format}
+
+# ## 'binary'
+
+# prompt_base: "Please review the following clinical text, which includes patient's medical history, results of medical examinations, interpretations of those results, diagnoses, and treatment plans. Determine if there are any errors in the interpretation of examination results, diagnoses, or treatment plans." 
+# prompt_data: "\n\nClinical Text:\n\n{full_text}"
+# prompt_format: "Output your response in JSON format with a key “Final Answer”, where the value for “Final Answer” is 'Yes' if there is an error and 'No' if there are no errors."
+
+# sys_prompt_base: "You are a clinician reviewing a clinical note that may or may not contain an error."
+# sys_prompt_format: ${prompt_format}
+
+## identify_one_error_sentence
+
+prompt_base: "Please review the clinical text provided below with a focus on its medical content, which contains a single sentence with a clinical error, along with its breakdown into sections covering the patient's medical history, results of medical examinations, interpretations of those results, diagnoses, and treatment plans. Determine which part of the examination results, diagnoses, or treatment plans has been misinterpreted or incorrectly stated. Identify precisely one sentence with an error. "   
+prompt_format: "Output your response in JSON format with a key “Identified Error Sentence”, where the value for this key is the identified error sentence."
+prompt_data: "\n\nClinical Text:\n\n{full_text}"
+# prompt_breakdown: "\n\nBreakdown into sections:\n\n{}"
+
+sys_prompt_base: "You are a clinician reviewing a clinical note that contains exactly one sentence with medical error. Identify and return this single error sentence as your response. "
+sys_prompt_format: "Output your response in JSON format with a key “Identified Error Sentence”, where the value for this key is the identified error sentence."
+
+# ## 'identify_n_error_sentences': # originally 'detect':
+
+# prompt_data: "Consider the following clinical note:\n\n{}\n\n"
+# prompt_base: "-> Was '{error_sentence}' {qualifier} {category} here? Let’s think step-by-step."
+# prompt_format: "Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"
+
+# sys_prompt_base: "You are a clinician reviewing a clinical note that contains one or no error sentence."
+# sys_prompt_format: "Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"

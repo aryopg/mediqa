@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - override /model: gpt3_api
+  - override /data: mediqa
+  - override /trainer: identify_one_error_sentence # not sure about this one 
+  - override /prompt: prompt_identify_one_error_sentence
+hydra:
+  run:
+    dir: outputs/gpt3_api/${now:%Y-%m-%d}/identify_one_error_sentence/${now:%H-%M-%S}

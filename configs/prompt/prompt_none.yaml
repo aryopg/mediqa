@@ -1,4 +1,0 @@
-defaults:
-  - base_prompt_config
-
-prompt_template: "{icl_example}Consider this clinical text:\n\n{clinical_sentences}"

@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - override /model: gpt3_api
+  - override /data: mediqa
+  - override /trainer: annotate # not sure about this one 
+  - override /prompt: prompt_annotate
+hydra:
+  run:
+    dir: outputs/gpt3_api/${now:%Y-%m-%d}/annotate/${now:%H-%M-%S}

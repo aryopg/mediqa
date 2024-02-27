@@ -1,0 +1,21 @@
+defaults:
+  - base_trainer_config
+
+name: sentence_correction_without_span
+configs:
+  epochs: 0
+
+  mode: sentence_correction_without_span 
+  
+  gradient_accumulation_steps: 0
+  fusion_strategy: ""
+  explicit_evidence: False
+  common_lora_config: null
+  section_lora_config: null
+  common_polytropon_config: null
+
+wandb_args:
+  project_name: MediQA
+  session_name: sentence_correction_without_span
+  name: MediQA_sentence_correction_without_span 
+

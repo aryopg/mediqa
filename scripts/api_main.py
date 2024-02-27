@@ -21,8 +21,8 @@ from mediqa.utils import common_utils
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(configs: TrainingConfigs) -> None:
     missing_keys: set[str] = OmegaConf.missing_keys(configs)
-    if missing_keys:
-        raise RuntimeError(f"Got missing keys in config:\n{missing_keys}")
+    # if missing_keys:
+    #     raise RuntimeError(f"Got missing keys in config:\n{missing_keys}")
 
     common_utils.setup_random_seed(configs.random_seed)
 
@@ -30,8 +30,8 @@ def main(configs: TrainingConfigs) -> None:
     mode = configs.trainer.configs.mode
     print(f"MODE = {mode}")
     
-    _ = trainer.test("train", log_metrics=True, mode=mode)
-    # _ = trainer.test("valid", log_metrics=True)
+    # _ = trainer.test("train", log_metrics=True, mode=mode)
+    _ = trainer.test("valid", log_metrics=True)
     # _ = trainer.test("test", log_metrics=True)
 
 

@@ -4,15 +4,11 @@ defaults:
   - model: mistral_7b_instruct
   - trainer: 0_shot
   - prompt: prompt_none
-  - experiment: null
+  # - experiment: null
+  - override: null
   - _self_
 
-# hydra:
-#   output_subdir: null
 random_seed: 1234
-
-wandb_project: MEDIQA
-wandb_entity: clee1997
 
 debug: true
 

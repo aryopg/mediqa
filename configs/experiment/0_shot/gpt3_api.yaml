@@ -1,8 +1,0 @@
-# @package _global_
-defaults:
-  - override /model: gpt3_api
-  - override /data: mediqa
-  - override /trainer: 0_shot # not sure about this one 
-hydra:
-  run:
-    dir: outputs/gpt3_api/${now:%Y-%m-%d}/${now:%H-%M-%S}

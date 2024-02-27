@@ -1,0 +1,9 @@
+# @package _global_
+defaults:
+  - override /model: gpt3_api
+  - override /data: mediqa
+  - override /trainer: sentence_correction_without_span # not sure about this one 
+  - override /prompt: prompt_sentence_correction_without_span
+hydra:
+  run:
+    dir: outputs/gpt3_api/${now:%Y-%m-%d}/sentence_correction_without_span/${now:%H-%M-%S}

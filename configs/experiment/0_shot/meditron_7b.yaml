@@ -1,9 +1,0 @@
-# @package _global_
-defaults:
-  - override /model: meditron_7b
-  - override /data: mediqa
-  - override /trainer: 0_shot
-
-hydra:
-  run:
-    dir: outputs/meditron_7b/${now:%Y-%m-%d}/${now:%H-%M-%S}

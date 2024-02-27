@@ -1,0 +1,6 @@
+prompt_base: "In the provided clinical text, the sentence '{error_sentence}' is identified to contain a clinical error. Please review this sentence with a focus on its medical content and correct it to be medically accurate. Provide the corrected sentence as your output."
+prompt_data: "\n\nClinical Text:\n\n{full_text}"
+prompt_format: "Output your response in JSON format with a key 'Model Corrected Sentence'."
+
+sys_prompt_base: "You are a clinician reviewing a clinical note that contains exactly one sentence with medical error. Identify and return this single error sentence as your response. "
+sys_prompt_format: "Output your response in JSON format with a key 'Model Corrected Sentence'." # $(prompt_format)
