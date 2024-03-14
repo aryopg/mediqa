@@ -28,7 +28,7 @@ def main(configs: TrainingConfigs) -> None:
     huggingface_hub.login(token=os.getenv("HF_DOWNLOAD_TOKEN", ""))
 
     trainer = Trainer(configs)
-    _ = trainer.test("train", log_metrics=True)
+    # _ = trainer.test("train", log_metrics=True)
     _ = trainer.test("valid", log_metrics=True)
     _ = trainer.test("test", log_metrics=True)
 

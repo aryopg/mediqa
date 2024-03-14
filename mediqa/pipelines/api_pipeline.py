@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from itertools import combinations, product
@@ -7,16 +8,15 @@ from typing import List, Optional, Tuple
 from omegaconf import OmegaConf
 from openai import OpenAI
 
-from ..configs import ModelConfigs
+from ..configs import ModelConfigs, PromptConfigs
 from .base_pipeline import BasePipeline
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 class APIPipeline(BasePipeline):
-    def __init__(
-        self,
-        model_configs: ModelConfigs,
-    ):
-        super().__init__(model_configs)
+    def __init__(self, model_configs: ModelConfigs, prompt_configs: PromptConfigs):
+        super().__init__(model_configs, prompt_configs)
 
         self.model_name = self.model_configs.configs.model_name_or_path
         self.client = OpenAI(
@@ -33,13 +33,15 @@ class APIPipeline(BasePipeline):
 
     @staticmethod
     def _label_template(label):
+        expected_label = {}
+        if label["label_reason"]:
+            expected_label["reason"] = label["label_reason"]
         if label["label_flags"] == 0:
-            expected_label = None
+            expected_label["incorrect_sentence_id"] = -1
+            expected_label["correction"] = "NA"
         elif label["label_flags"] == 1:
-            expected_label = {
-                "incorrect_sentence_id": label["label_sentence_ids"][0],
-                "correction": label["label_sentences"][0],
-            }
+            expected_label["incorrect_sentence_id"] = label["label_sentence_ids"][0]
+            expected_label["correction"] = label["label_sentences"][0]
         return json.dumps(expected_label)
 
     def _create_prompt(self, inputs):
@@ -63,7 +65,6 @@ class APIPipeline(BasePipeline):
     def generate(
         self,
         inputs,
-        use_cot=False,
     ) -> Tuple[List[List[int]], Optional[List[List[float]]]]:
         prompt = self._create_prompt(inputs)
 
@@ -80,7 +81,7 @@ class APIPipeline(BasePipeline):
 
         return {
             "original_prediction": generated_text,
-            "predicted_error_flags": prediction["predicted_error_flags"],
+            "predicted_error_flag": prediction["predicted_error_flag"],
             "predicted_error_sentence_id": prediction["predicted_error_sentence_id"],
             "predicted_corrected_sentence": prediction["predicted_corrected_sentence"],
             "postprocess_success": prediction["postprocess_success"],
@@ -95,25 +96,30 @@ class APIPipeline(BasePipeline):
             jsonified_text = json.loads(generated_text)
 
             if jsonified_text is None:
-                predicted_error_flags = 0
+                predicted_error_flag = 0
                 predicted_error_sentence_id = -1
                 predicted_corrected_sentence = "NA"
             else:
-                predicted_error_flags = 1
-                predicted_error_sentence_id = int(
-                    jsonified_text["incorrect_sentence_id"]
-                )
-                predicted_corrected_sentence = jsonified_text["correction"]
+                if jsonified_text["correction"] == "NA":
+                    predicted_error_flag = 0
+                    predicted_error_sentence_id = -1
+                    predicted_corrected_sentence = "NA"
+                else:
+                    predicted_error_flag = 1
+                    predicted_error_sentence_id = int(
+                        jsonified_text["incorrect_sentence_id"]
+                    )
+                    predicted_corrected_sentence = jsonified_text["correction"]
 
             success = True
         except json.decoder.JSONDecodeError as e:
-            predicted_error_flags = 0
+            predicted_error_flag = 0
             predicted_error_sentence_id = -1
             predicted_corrected_sentence = "NA"
             success = False
 
         return {
-            "predicted_error_flags": predicted_error_flags,
+            "predicted_error_flag": predicted_error_flag,
             "predicted_error_sentence_id": predicted_error_sentence_id,
             "predicted_corrected_sentence": predicted_corrected_sentence,
             "postprocess_success": success,

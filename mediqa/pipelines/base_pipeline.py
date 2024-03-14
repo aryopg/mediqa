@@ -5,23 +5,18 @@ from typing import List, Optional, Tuple
 import torch
 from omegaconf import OmegaConf
 
-from mediqa.configs import ModelConfigs
+from mediqa.configs import ModelConfigs, PromptConfigs
 
 
 class BasePipeline(ABC):
     def __init__(
         self,
         model_configs: ModelConfigs,
+        prompt_configs: PromptConfigs,
     ):
         self.model_configs = model_configs
 
-        # Only LLaMA and GPT that can use system prompt
-        self.system_prompt = None
-        if (
-            "llama" in self.model_configs.configs.model_name_or_path.lower()
-            or "gpt" in self.model_configs.configs.model_name_or_path.lower()
-        ):
-            self.system_prompt = model_configs.configs.system_prompt
+        self.system_prompt = prompt_configs.system_prompt
 
         self.max_seq_len = model_configs.configs.max_seq_len
 

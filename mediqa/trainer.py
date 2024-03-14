@@ -46,6 +46,7 @@ class Trainer:
                 self.configs.data,
                 self.configs.prompt,
                 self.configs.trainer,
+                self.configs.retriever,
                 split=split,
             )
             self.dataloaders[split] = DataLoader(
@@ -56,9 +57,9 @@ class Trainer:
 
     def _load_pipeline(self) -> BasePipeline:
         if self.configs.model.configs.model_type == "hf":
-            self.pipeline = HFPipeline(self.configs.model)
+            self.pipeline = HFPipeline(self.configs.model, self.configs.prompt)
         elif self.configs.model.configs.model_type == "api":
-            self.pipeline = APIPipeline(self.configs.model)
+            self.pipeline = APIPipeline(self.configs.model, self.configs.prompt)
 
     def _load_accelerator(self) -> Accelerator:
         if self.configs.model.configs.model_type == "hf":
@@ -78,7 +79,7 @@ class Trainer:
             self.accelerator = None
 
     @staticmethod
-    def compute_metrics(predictions: pd.DataFrame):
+    def compute_metrics(predictions: pd.DataFrame, split: str):
         """
         TO DO!
         """
@@ -86,11 +87,26 @@ class Trainer:
         def create_dict_by_text_id(column):
             return {
                 text_id: value
-                for text_id, value in zip(predictions["text_id"], predictions[column])
+                for text_id, value in zip(predictions["id"], predictions[column])
             }
 
+        predictions["predicted_error_flag"] = predictions[
+            "predicted_error_flag"
+        ].astype(int)
+        predictions["label_flags"] = predictions["label_flags"].astype(int)
+        predictions["predicted_error_sentence_id"] = predictions[
+            "predicted_error_sentence_id"
+        ].astype(int)
+        predictions["label_sentence_ids"] = predictions["label_sentence_ids"].astype(
+            int
+        )
+        predictions["predicted_corrected_sentence"] = predictions[
+            "predicted_corrected_sentence"
+        ].astype(str)
+        predictions["label_sentences"] = predictions["label_sentences"].astype(str)
+
         # Make a dictionary out of the DataFrame, with text_id as keys
-        candidate_flags = create_dict_by_text_id("predicted_error_flags")
+        candidate_flags = create_dict_by_text_id("predicted_error_flag")
         candidate_sent_id = create_dict_by_text_id("predicted_error_sentence_id")
         candidate_corrections = create_dict_by_text_id("predicted_corrected_sentence")
 
@@ -110,21 +126,29 @@ class Trainer:
         nlg_eval_results = metrics.compute(references, predictions, counters)
 
         return {
-            "accuracy": accuracy,
-            "R1F_subset_check": nlg_eval_results["R1F_subset_check"],
-            "R2F_subset_check": nlg_eval_results["R2F_subset_check"],
-            "RLF_subset_check": nlg_eval_results["RLF_subset_check"],
-            "R1FC": nlg_eval_results["R1FC"],
-            "R2FC": nlg_eval_results["R2FC"],
-            "RLFC": nlg_eval_results["RLFC"],
+            f"{split}/accuracy": accuracy,
+            f"{split}/R1F_subset_check": nlg_eval_results["R1F_subset_check"],
+            f"{split}/R2F_subset_check": nlg_eval_results["R2F_subset_check"],
+            f"{split}/RLF_subset_check": nlg_eval_results["RLF_subset_check"],
+            f"{split}/R1FC": nlg_eval_results["R1FC"],
+            f"{split}/R2FC": nlg_eval_results["R2FC"],
+            f"{split}/RLFC": nlg_eval_results["RLFC"],
         }
 
     def _setup_run(self):
-        ## Set group name by trainer name (i.e. zero_shot, fine_tune)
+        ## Set group name by trainer name (e.g. 2_shot, cot_2_shot)
         self.wandb_group_name = self.configs.trainer.name
 
         # Naming by model name
         self.wandb_run_name = self.configs.model.name
+
+        # Naming by model name, instruction name, and in context examples name
+        wandb_run_name = [
+            self.configs.model.name,
+            self.configs.retriever.name,
+        ]
+        self.wandb_run_name = "__".join(wandb_run_name)
+        print(f"Logging to wandb: {self.wandb_run_name}")
 
         self.wandb_tracker = None
         if self.accelerator:
@@ -138,6 +162,7 @@ class Trainer:
                             "group": self.wandb_group_name,
                         }
                     },
+                    config=OmegaConf.to_container(self.configs),
                 )
                 self.wandb_tracker: WandBTracker = self.accelerator.get_tracker("wandb")
                 self.accelerator.wait_for_everyone()
@@ -147,6 +172,7 @@ class Trainer:
                 entity=self.configs.wandb_entity,
                 name=self.wandb_run_name,
                 group=self.wandb_group_name,
+                config=OmegaConf.to_container(self.configs),
             )
 
     def train(self):
@@ -156,13 +182,13 @@ class Trainer:
         print(f"Testing on {split}")
         predictions_df = pd.DataFrame(
             columns=[
-                "text_id",
-                "original_text",
+                "id",
+                "texts",
                 "prompted_text",
                 "label_flags",
                 "label_sentences",
                 "label_sentence_ids",
-                "predicted_error_flags",
+                "predicted_error_flag",
                 "predicted_error_sentence_id",
                 "predicted_corrected_sentence",
                 "original_prediction",
@@ -174,13 +200,13 @@ class Trainer:
 
             batch_df = pd.DataFrame(
                 {
-                    "text_id": batch["text_id"],
-                    "original_text": batch["original_text"],
+                    "id": batch["id"],
+                    "texts": batch["texts"],
                     "prompted_text": batch["prompted_text"],
                     "label_flags": batch["label_flags"],
                     "label_sentences": batch["label_sentences"],
                     "label_sentence_ids": batch["label_sentence_ids"],
-                    "predicted_error_flags": prediction["predicted_error_flags"],
+                    "predicted_error_flag": prediction["predicted_error_flag"],
                     "predicted_error_sentence_id": prediction[
                         "predicted_error_sentence_id"
                     ],
@@ -201,7 +227,7 @@ class Trainer:
             )
 
         # Evaluate
-        metrics = self.compute_metrics(predictions_df)
+        metrics = self.compute_metrics(predictions_df, split)
 
         # Log
         print(metrics)

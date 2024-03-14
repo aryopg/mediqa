@@ -42,7 +42,6 @@ class HFPipeline(BasePipeline):
     def generate(
         self,
         inputs,
-        use_cot=False,
     ) -> Tuple[List[List[int]], Optional[List[List[float]]]]:
         self.model.eval()
         # Most likely we're just gonna do batch size = 1

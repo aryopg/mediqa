@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from transformers import PreTrainedTokenizer
 
-from mediqa.configs import DataConfigs, PromptConfigs, TrainerConfigs
+from mediqa.configs import DataConfigs, PromptConfigs, RetrieverConfigs, TrainerConfigs
 
 TASK2ID = {
     "Results": 0,
@@ -24,12 +24,14 @@ class MEDIQADataset(torch.utils.data.Dataset):
         data_configs: DataConfigs,
         prompt_configs: PromptConfigs,
         trainer_configs: TrainerConfigs,
+        retriever_configs: RetrieverConfigs,
         split: str,
         **kwargs,
     ):
         self.data_configs = data_configs
         self.prompt_configs = prompt_configs
         self.trainer_configs = trainer_configs
+        self.retriever_configs = retriever_configs
 
         self.split = split
 
@@ -39,9 +41,85 @@ class MEDIQADataset(torch.utils.data.Dataset):
         )
 
         # Prepare data
+        ## If ICL run, set ICL examples
+        self.num_in_context_examples = (
+            self.trainer_configs.configs.num_in_context_examples
+        )
+        self.icl_corpus, self.icl_examples = self._set_icl_examples()
+
+        ## If CoT run, set CoT labels
+        self.cot_prompt = self.trainer_configs.configs.cot_prompt
+        self.cot_reasons = self._set_cot_reasons()
+
+        ## Parse data
         self.data = self.parse_data()
 
         self.prompt_template = self.prompt_configs.prompt_template
+
+    def _set_icl_examples(self):
+        if self.num_in_context_examples == 0:
+            return None, None
+
+        icl_corpus = pd.read_csv(
+            os.path.join(self.data_dir, self.retriever_configs.knowledge_corpus)
+        )
+        icl_examples = pd.read_json(
+            os.path.join(
+                self.retriever_configs.icl_examples_dir,
+                self.split + ".json",
+            )
+        )
+
+        return icl_corpus, icl_examples
+
+    def _set_cot_reasons(self):
+        if not self.cot_prompt:
+            return {}
+
+        with open(self.trainer_configs.configs.cot_reasons_filepath, "r") as f:
+            return json.load(f)
+
+    def get_icl_examples_by_id(self, text_id: str):
+        # Get the ICL examples depending on the number of ICL examples allowed
+        sample_icl_examples = self.icl_examples[text_id]
+
+        selected_icl_examples = []
+
+        # Choose the top-k/2 of both the positive and negative examples
+        top_k_positives = [
+            (example["id"], example["score"])
+            for example in sample_icl_examples["pos"][
+                : int(self.num_in_context_examples / 2)
+            ]
+        ]
+        top_k_negatives = [
+            (example["id"], example["score"])
+            for example in sample_icl_examples["neg"][
+                : int(self.num_in_context_examples / 2)
+            ]
+        ]
+
+        selected_icl_examples += top_k_positives + top_k_negatives
+
+        # sorted by their scores, highest to lowest. Take only the ids
+        selected_icl_examples = [
+            example[0]
+            for example in sorted(
+                selected_icl_examples, key=lambda x: x[1], reverse=True
+            )
+        ]
+
+        return selected_icl_examples
+
+    @staticmethod
+    def _preprocess_sentence(sentence: str) -> str:
+        if not isinstance(sentence, str):
+            if type(sentence) == float:
+                sentence = "NA"
+            else:
+                sentence = str(sentence)
+                sentence = sentence.replace("\n", " ").replace("\r", " ").strip()
+        return sentence
 
     def parse_data(self) -> dict:
         """Parsing reference file path."""
@@ -49,7 +127,8 @@ class MEDIQADataset(torch.utils.data.Dataset):
 
         text_ids = df["Text ID"].tolist()
 
-        original_texts = []
+        texts = []
+        sentences = []
         label_flags = []
         label_sentences = []
         label_sentence_ids = []
@@ -60,26 +139,51 @@ class MEDIQADataset(torch.utils.data.Dataset):
         else:
             error_flag_column = "Error_flag"
 
+        icl_examples = []
         for _, row in df.iterrows():
-            original_texts += [str(row["Sentences"])]
-            corrected_sentence = row["Corrected Sentence"]
-
-            if not isinstance(corrected_sentence, str):
-                if math.isnan(corrected_sentence):
-                    corrected_sentence = "NA"
-                else:
-                    corrected_sentence = str(corrected_sentence)
-                    corrected_sentence = (
-                        corrected_sentence.replace("\n", " ").replace("\r", " ").strip()
-                    )
+            texts += [str(row["Text"])]
+            sentences += [str(row["Sentences"])]
+            corrected_sentence = self._preprocess_sentence(row["Corrected Sentence"])
 
             label_flags += [str(row[error_flag_column])]
             label_sentences += [corrected_sentence]
             label_sentence_ids += [str(row["Error Sentence ID"])]
 
+            if self.icl_corpus is not None and self.icl_examples is not None:
+                sample_icl_example_ids = self.get_icl_examples_by_id(row["Text ID"])
+                sample_icl_examples = []
+                for sample_icl_example_id in sample_icl_example_ids:
+                    sample_icl_example = self.icl_corpus.loc[
+                        self.icl_corpus["Text ID"] == sample_icl_example_id
+                    ]
+                    sample_icl_example = {
+                        "sentences": sample_icl_example["Sentences"].tolist()[0],
+                        "label_flags": str(
+                            sample_icl_example[error_flag_column].tolist()[0]
+                        ),
+                        "label_sentences": self._preprocess_sentence(
+                            sample_icl_example["Corrected Sentence"].tolist()[0]
+                        ),
+                        "label_sentence_ids": str(
+                            sample_icl_example["Error Sentence ID"].tolist()[0]
+                        ),
+                        "label_reason": "",
+                    }
+                    if self.cot_prompt and self.cot_reasons:
+                        sample_icl_example["label_reason"] = self.cot_reasons[
+                            sample_icl_example_id
+                        ]["reason"]
+                    sample_icl_examples += [sample_icl_example]
+            else:
+                sample_icl_examples = []
+
+            icl_examples += [sample_icl_examples]
+
         return {
-            "text_ids": text_ids,
-            "original_texts": original_texts,
+            "ids": text_ids,
+            "icl_examples": icl_examples,
+            "texts": texts,
+            "sentences": sentences,
             "label_flags": label_flags,
             "label_sentences": label_sentences,
             "label_sentence_ids": label_sentence_ids,
@@ -88,113 +192,34 @@ class MEDIQADataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         icl_texts = []
         icl_labels = []
-        if self.trainer_configs.configs.num_in_context_examples > 0:
-            if self.trainer_configs.configs.num_in_context_examples % 2 == 0:
-                # If number of ICL examples is divisible by 2, provide half positive and half negative examples
-                # (this can be optimised, but future aryo's problem :p)
-                pos_icl_candidates = []
-                neg_icl_candidates = []
-                for i, label_flag in enumerate(self.data["label_flags"]):
-                    if i != idx:
-                        if int(label_flag) == 1:
-                            pos_icl_candidates += [i]
-                        elif int(label_flag) == 0:
-                            neg_icl_candidates += [i]
-                pos_icl_example_ids = np.random.choice(
-                    pos_icl_candidates,
-                    self.trainer_configs.configs.num_in_context_examples // 2,
-                )
-                neg_icl_example_ids = np.random.choice(
-                    neg_icl_candidates,
-                    self.trainer_configs.configs.num_in_context_examples // 2,
-                )
-
-                for icl_example_id in pos_icl_example_ids:
-                    icl_texts += [
-                        self.prompt_template.format(
-                            clinical_sentences=self.data["original_texts"][
-                                icl_example_id
-                            ],
-                            cot_prompt="",
-                        )
-                    ]
-
-                    icl_labels += [
-                        {
-                            "label_flags": int(
-                                self.data["label_flags"][icl_example_id]
-                            ),
-                            "label_sentences": self.data["label_sentences"][
-                                icl_example_id
-                            ],
-                            "label_sentence_ids": self.data["label_sentence_ids"][
-                                icl_example_id
-                            ],
-                        }
-                    ]
-
-                for icl_example_id in neg_icl_example_ids:
-                    icl_texts += [
-                        self.prompt_template.format(
-                            clinical_sentences=self.data["original_texts"][
-                                icl_example_id
-                            ],
-                            cot_prompt="",
-                        )
-                    ]
-                    icl_labels += [
-                        {
-                            "label_flags": int(
-                                self.data["label_flags"][icl_example_id]
-                            ),
-                            "label_sentences": self.data["label_sentences"][
-                                icl_example_id
-                            ],
-                            "label_sentence_ids": self.data["label_sentence_ids"][
-                                icl_example_id
-                            ],
-                        }
-                    ]
-            else:
-                # Randomly sample in-context examples whose id is different from the current one
-                icl_candidates = [
-                    i for i in range(len(self.data["text_ids"])) if i != idx
+        if self.num_in_context_examples > 0:
+            for icl_example in self.data["icl_examples"][idx]:
+                # print(icl_example)
+                icl_texts += [
+                    self.prompt_template.format(
+                        clinical_sentences=icl_example["sentences"],
+                        cot_prompt=self.cot_prompt,
+                    )
                 ]
-                icl_example_ids = np.random.choice(
-                    icl_candidates, self.trainer_configs.configs.num_in_context_examples
-                )
 
-                for icl_example_id in icl_example_ids:
-                    icl_texts += [
-                        self.prompt_template.format(
-                            clinical_sentences=self.data["original_texts"][
-                                icl_example_id
-                            ],
-                            cot_prompt="",
-                        )
-                    ]
-                    icl_labels += [
-                        {
-                            "label_flags": int(
-                                self.data["label_flags"][icl_example_id]
-                            ),
-                            "label_sentences": self.data["label_sentences"][
-                                icl_example_id
-                            ],
-                            "label_sentence_ids": self.data["label_sentence_ids"][
-                                icl_example_id
-                            ],
-                        }
-                    ]
+                icl_labels += [
+                    {
+                        "label_flags": int(icl_example["label_flags"]),
+                        "label_sentences": icl_example["label_sentences"],
+                        "label_sentence_ids": icl_example["label_sentence_ids"],
+                        "label_reason": icl_example["label_reason"],
+                    }
+                ]
 
         return {
-            "text_id": self.data["text_ids"][idx],
-            "original_text": self.data["original_texts"][idx],
+            "id": self.data["ids"][idx],
+            "texts": self.data["texts"][idx],
+            "sentences": self.data["sentences"][idx],
             "icl_texts": icl_texts,
             "icl_labels": icl_labels,
             "prompted_text": self.prompt_template.format(
-                clinical_sentences=self.data["original_texts"][idx],
-                cot_prompt="",
+                clinical_sentences=self.data["sentences"][idx],
+                cot_prompt=self.cot_prompt,
             ),
             "label_flags": int(self.data["label_flags"][idx]),
             "label_sentences": self.data["label_sentences"][idx],
@@ -202,4 +227,4 @@ class MEDIQADataset(torch.utils.data.Dataset):
         }
 
     def __len__(self):
-        return len(self.data["text_ids"])
+        return len(self.data["ids"])
