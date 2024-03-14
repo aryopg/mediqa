@@ -13,8 +13,6 @@ def parse_split_ids(indexed_sents): # cos splits aren't always based on sentence
 def parse_detected_colname(col_name: str):
     """
     returns: from "Treatment 0" to ("treatments", 0)
-
-    this func depends on the very specific way i named annoatated column names. 
     """
     categories = ['treatments', 'diagnoses', 'interpretation of exam results'] # 'medical exam results'
     for category in categories:
@@ -118,11 +116,13 @@ def evaluate_error_detection(detected_df):
 ## eval func for 
 
 
-def error_sent_identification_acc(df): # from single sent detection
+def error_sent_identification_acc(df, only_incorrect_subset=False, from_binary_classification=False, binary_res_df=None): # from single sent detection
 
     # no_columns_list = []
     num_corr = 0
     # import pdb; pdb.set_trace()
+    if only_incorrect_subset:
+        df = df[df['Error Flag']==1]
     
     # Iterate over DataFrame rows
     for row_idx, row in df.iterrows():
@@ -142,7 +142,7 @@ def binary_classification_acc(df):
     num_corr=0
     for row_idx, row in df.iterrows():
         has_error_pred =  bool(row['Final Answer'] == 'Yes')
-        print(f"row['Error Flag'] = {row['Error Flag']}")
+        # print(f"row['Error Flag'] = {type(row['Error Flag'])}")
 
         has_error_gt = bool(row['Error Flag']==1)
 
