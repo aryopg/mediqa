@@ -6,7 +6,6 @@ configs:
   model_name_or_path: gpt-3.5-turbo
   model_type: api
   max_seq_len: 16384
-  system_prompt: You are a clinician reviewing clinical texts that may or may not contain 1 incorrect sentence. Respond in JSON with keys "incorrect_sentence_id" and "correction". If all correct, respond with null.
   temperature: 0.0
   top_p: 1
   frequency_penalty: 0

@@ -1,4 +1,0 @@
-defaults:
-  - base_prompt_config
-
-prompt_template: "Clinical text:\n\n{clinical_sentences}\n\nIdentify 1 incorrect sentence in the clinical text, or confirm if all sentences are correct. If there is 1 incorrect sentence, how would you fix it? {cot_prompt}\nAnswer:"

@@ -27,7 +27,16 @@ class TrainerConfigs:
 
 
 @dataclass
+class RetrieverConfigs:
+    name: str = MISSING
+    icl_examples_dir: str = MISSING
+    knowledge_corpus: str = MISSING
+    configs: dict = MISSING
+
+
+@dataclass
 class PromptConfigs:
+    system_prompt: str = MISSING
     prompt_template: str = MISSING
 
 
@@ -36,6 +45,7 @@ class TrainingConfigs:
     data: DataConfigs = MISSING
     trainer: TrainerConfigs = MISSING
     model: ModelConfigs = MISSING
+    retriever: RetrieverConfigs = MISSING
     prompt: PromptConfigs = MISSING
     wandb_project: str = MISSING
     wandb_entity: str = MISSING
@@ -48,6 +58,9 @@ def register_base_configs() -> None:
     configs_store.store(name="base_config", node=TrainingConfigs)
     configs_store.store(group="data", name="base_data_config", node=DataConfigs)
     configs_store.store(group="model", name="base_model_config", node=ModelConfigs)
+    configs_store.store(
+        group="retriever", name="base_retriever_config", node=RetrieverConfigs
+    )
     configs_store.store(group="prompt", name="base_prompt_config", node=PromptConfigs)
     configs_store.store(
         group="trainer", name="base_trainer_config", node=TrainerConfigs

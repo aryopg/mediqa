@@ -3,6 +3,7 @@ defaults:
   - data: mediqa
   - model: mistral_7b_instruct
   - trainer: 0_shot
+  - retriever: bm25
   - prompt: prompt_0
   - experiment: null
   - _self_
