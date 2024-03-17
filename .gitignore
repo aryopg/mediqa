@@ -163,7 +163,7 @@ cython_debug/
 outputs/
 wandb/
 artifacts/
-biolinkbert/data/*
+# biolinkbert/data/*
 biolinkbert/output/*
 
 *.DS_Store
