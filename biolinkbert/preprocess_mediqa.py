@@ -108,7 +108,7 @@ for file_path in [file_path_validate]:#, file_path_train, file_path_test]:
     hf_dataset = hf_dataset.map(transform_error_span)
 
     # Assuming 'dataset' is your loaded dataset with a nested structure
-    hf_dataset.to_json('/Users/chaeeunlee/Documents/VSC_workspaces/mediqa/biolinkbert/data/ms_val_processed.json')
+    hf_dataset.to_json('./biolinkbert/data/ms_val_processed.json')
 
 
     ## Saving logicd
