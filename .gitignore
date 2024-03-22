@@ -165,6 +165,8 @@ wandb/
 artifacts/
 # biolinkbert/data/*
 biolinkbert/output/*
+biolinkbert/output_/
+biolinkbert/output_/*
 
 *.DS_Store
 
