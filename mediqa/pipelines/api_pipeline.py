@@ -5,6 +5,8 @@ import time
 from itertools import combinations, product
 from typing import List, Optional, Tuple
 
+import pandas as pd
+from bert_score import score
 from omegaconf import OmegaConf
 from openai import OpenAI
 
@@ -89,9 +91,6 @@ class APIPipeline(BasePipeline):
 
     @staticmethod
     def postprocess_prediction(generated_text):
-        """
-        TO DO
-        """
         try:
             jsonified_text = json.loads(generated_text)
 
@@ -99,19 +98,25 @@ class APIPipeline(BasePipeline):
                 predicted_error_flag = 0
                 predicted_error_sentence_id = -1
                 predicted_corrected_sentence = "NA"
+                success = True
             else:
-                if jsonified_text["correction"] == "NA":
+                try:
+                    if jsonified_text["correction"] == "NA":
+                        predicted_error_flag = 0
+                        predicted_error_sentence_id = -1
+                        predicted_corrected_sentence = "NA"
+                    else:
+                        predicted_error_flag = 1
+                        predicted_error_sentence_id = int(
+                            jsonified_text["incorrect_sentence_id"]
+                        )
+                        predicted_corrected_sentence = jsonified_text["correction"]
+                    success = True
+                except KeyError as e:
                     predicted_error_flag = 0
                     predicted_error_sentence_id = -1
                     predicted_corrected_sentence = "NA"
-                else:
-                    predicted_error_flag = 1
-                    predicted_error_sentence_id = int(
-                        jsonified_text["incorrect_sentence_id"]
-                    )
-                    predicted_corrected_sentence = jsonified_text["correction"]
-
-            success = True
+                    success = False
         except json.decoder.JSONDecodeError as e:
             predicted_error_flag = 0
             predicted_error_sentence_id = -1
@@ -124,3 +129,69 @@ class APIPipeline(BasePipeline):
             "predicted_corrected_sentence": predicted_corrected_sentence,
             "postprocess_success": success,
         }
+
+    @staticmethod
+    def bertscore_filter(predictions_df: pd.DataFrame, threshold: float = 0.85):
+        """
+        Comparing the predicted correction with the original sentence (the suspected mistake)
+        If the BERTscore F1 is higher than the threshold, the prediction is kept, otherwise it is replaced with "NA"
+
+        Args:
+            predictions_df (pd.DataFrame): _description_
+            threshold (float, optional): _description_. Defaults to 0.85.
+
+        Returns:
+            _type_: _description_
+        """
+        original_predicted_error_flags = predictions_df["predicted_error_flag"].tolist()
+        original_predicted_error_sentence_ids = predictions_df[
+            "predicted_error_sentence_id"
+        ].tolist()
+        original_predicted_corrected_sentences = predictions_df[
+            "predicted_corrected_sentence"
+        ].tolist()
+        # Reference is the original sentence
+        references = [
+            (
+                split_sentences[int(predicted_error_sentence_id)]
+                if predicted_error_sentence_id != -1
+                else "NA"
+            )
+            for split_sentences, predicted_error_sentence_id in zip(
+                predictions_df["split_sentences"].tolist(),
+                predictions_df["predicted_error_sentence_id"].tolist(),
+            )
+        ]
+        _, _, f1s = score(
+            original_predicted_corrected_sentences, references, lang="en", verbose=True
+        )
+
+        filtered_predicted_error_flags = []
+        filtered_predicted_error_sentence_ids = []
+        filtered_predicted_corrected_sentences = []
+        for i, f1 in enumerate(f1s):
+            if f1 >= threshold:
+                filtered_predicted_error_flags += [original_predicted_error_flags[i]]
+                filtered_predicted_error_sentence_ids += [
+                    original_predicted_error_sentence_ids[i]
+                ]
+                filtered_predicted_corrected_sentences += [
+                    original_predicted_corrected_sentences[i]
+                ]
+            else:
+                filtered_predicted_error_flags += [0]
+                filtered_predicted_error_sentence_ids += [-1]
+                filtered_predicted_corrected_sentences += ["NA"]
+
+        postprocessed_predictions_df = predictions_df.copy()
+        postprocessed_predictions_df["predicted_error_flag"] = (
+            filtered_predicted_error_flags
+        )
+        postprocessed_predictions_df["predicted_error_sentence_id"] = (
+            filtered_predicted_error_sentence_ids
+        )
+        postprocessed_predictions_df["predicted_corrected_sentence"] = (
+            filtered_predicted_corrected_sentences
+        )
+
+        return postprocessed_predictions_df

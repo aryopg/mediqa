@@ -2,5 +2,5 @@
 defaults:
   - override /model: gpt35
   - override /data: mediqa
-  - override /trainer: cot_4_shot
+  - override /trainer: cot_brief_4_shot
   - override /prompt: cot_prompt

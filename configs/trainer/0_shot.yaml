@@ -1,7 +1,0 @@
-defaults:
-  - base_trainer_config
-
-name: 0_shot
-configs:
-  epochs: 0
-  num_in_context_examples: 0

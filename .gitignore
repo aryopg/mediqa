@@ -165,3 +165,6 @@ wandb/
 artifacts/
 
 *.DS_Store
+
+*/submissions/*
+*/valid_submissions/*

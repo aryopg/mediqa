@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import sys
 
@@ -8,6 +9,7 @@ sys.path.append(os.getcwd())
 from dotenv import load_dotenv
 
 load_dotenv(".env")
+from enum import Enum
 from typing import List
 
 import hydra
@@ -26,6 +28,31 @@ from mediqa.configs import (
     register_base_configs,
 )
 from mediqa.dataset import MEDIQADataset
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+class ReasonInstructions(Enum):
+    brief = (
+        "Please present a brief reasoning that leads to the groundtruth JSON answer provided. "
+        "Return the reason in a JSON format with key 'reason'\n"
+        "Reason: "
+    )
+    long = (
+        "Please present a step-by-step reasoning that leads to the groundtruth JSON answer provided. "
+        "Include any considerations, medical standards, or guidelines that you deem as helpful in your assessment. "
+        "Return the reason in a JSON format with key 'reason'\n"
+        "Reason: "
+    )
+    soap = (
+        "Please present a step-by-step reasoning that leads to the groundtruth JSON answer provided. Include any considerations, medical standards, or guidelines that you deem as helpful in your assessment.\n"
+        "You may follow this reasoning steps:\n"
+        "First, organise the clinical note into a structured SOAP format (Subjective, Objective, Assessment, Plan).\n"
+        "Second, identify an inconsistency in the collection of clinical facts, if any.\n"
+        "Lastly, present the reasoning that leads to the groundtruth JSON answer provided given the SOAP-structured clinical facts\n"
+        "Return the reason as contiguous text in a JSON format with key 'reason'\n"
+        "Reason: "
+    )
 
 
 def update_json_file(file_path, key, value):
@@ -53,29 +80,32 @@ def generate_cot_reasons(
     label_flag,
     label_sentence,
     label_sentence_id,
+    trainer_name,
     generation_configs,
 ):
     system_prompt = (
-        "You are a clinician reviewing clinical texts that may or may not contain 1 incorrect sentence. "
-        "If there is an incorrect sentence, it will be noted in a JSON object with keys 'incorrect_sentence_id' "
-        "and 'correction'. If all correct, null JSON object is mentioned. Now you need to provide a reason to your answer."
+        "You are a clinician tasked with reviewing clinical texts, each of which may contain either one incorrect sentence due to clinical or factual inaccuracies, or no errors at all."
+        "You are also presented with a JSON object containing the index of the inaccurate sentence (if any) and the correction with the following structure:\n\n"
+        "- 'incorrect_sentence_id': If there is an incorrect sentence, its ID is here. If all sentences are correct, it will be -1.\n"
+        "- 'correction': If an incorrect sentence is identified, a corrected sentence is mentioned here. If all sentences are correct, 'NA' is mentioned here instead.\n\n"
+        "When evaluating the text, focus specifically on clinical or factual inaccuracies. "
+        "This could include incorrect medical information, factual errors related to patient care, or erroneous data interpretations. "
     )
-    json_instruction = "Return the reason in JSON with key 'reason'"
-    pos_reason_instruction = (
-        "Reason briefly why this correction is more plausible. " + json_instruction
-    )
-    neg_reason_instruction = (
-        "Reason briefly why this clinical note is correct. " + json_instruction
-    )
+    if trainer_name.startswith("cot_soap"):
+        reason_instruction = ReasonInstructions.soap.value
+    elif trainer_name.startswith("cot_long"):
+        reason_instruction = ReasonInstructions.long.value
+    elif trainer_name.startswith("cot_brief"):
+        reason_instruction = ReasonInstructions.brief.value
+    else:
+        raise NotImplementedError
 
     if label_flag == 1:
         label = json.dumps(
             {"incorrect_sentence_id": label_sentence_id, "correction": label_sentence}
         )
-        user_content = f"{text} {label}\n{pos_reason_instruction}"
     else:
-        label = json.dumps(None)
-        user_content = f"{text} {label}\n{neg_reason_instruction}"
+        label = json.dumps({"incorrect_sentence_id": -1, "correction": "NA"})
 
     prompts = [
         {
@@ -84,7 +114,7 @@ def generate_cot_reasons(
         },
         {
             "role": "user",
-            "content": user_content,
+            "content": f"{text} {label}\n{reason_instruction}",
         },
     ]
 
@@ -103,7 +133,7 @@ def main(configs: TrainingConfigs) -> None:
     if missing_keys:
         raise RuntimeError(f"Got missing keys in config:\n{missing_keys}")
 
-    cot_file_path = "data/cot_reasons.json"
+    cot_file_path = configs.trainer.configs.cot_reasons_filepath
 
     # OpenAI client
     model_name = configs.model.configs.model_name_or_path
@@ -116,7 +146,7 @@ def main(configs: TrainingConfigs) -> None:
         "top_p": configs.model.configs.top_p,
         "frequency_penalty": configs.model.configs.frequency_penalty,
         "presence_penalty": configs.model.configs.presence_penalty,
-        "max_tokens": configs.model.configs.max_tokens,
+        "max_tokens": 512,
     }
 
     dataset = MEDIQADataset(
@@ -140,6 +170,8 @@ def main(configs: TrainingConfigs) -> None:
     except FileNotFoundError:
         train_samples_w_cot = set()
 
+    print(f"Existing reasons found: {len(train_samples_w_cot)}/{len(dataloader)}")
+
     for batch in tqdm(dataloader):
         # Skip if already processed
         if batch["id"][0] in train_samples_w_cot:
@@ -152,12 +184,13 @@ def main(configs: TrainingConfigs) -> None:
                 batch["label_flags"][0],
                 batch["label_sentences"][0],
                 batch["label_sentence_ids"][0],
+                configs.trainer.name,
                 generation_configs,
             )
             update_json_file(cot_file_path, batch["id"][0], cot_reason)
         except Exception as e:
             print(f"Exception: {e}")
-            print(f"Failed to generate reason: {batch['text_id'][0]}")
+            print(f"Failed to generate reason: {batch['id'][0]}")
 
 
 if __name__ == "__main__":

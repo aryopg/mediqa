@@ -16,9 +16,9 @@ from tqdm import tqdm
 
 import wandb
 
+from .all_metrics import NLGMetrics, compute_accuracy, get_nlg_eval_data
 from .configs import TrainingConfigs
 from .dataset import MEDIQADataset
-from .metrics import NLGMetrics, compute_accuracy, get_nlg_eval_data
 from .pipelines import APIPipeline, BasePipeline, HFPipeline
 
 
@@ -122,7 +122,7 @@ class Trainer:
         references, predictions, counters = get_nlg_eval_data(
             reference_corrections, candidate_corrections
         )
-        metrics = NLGMetrics()
+        metrics = NLGMetrics(metrics=["ROUGE", "BERTSCORE"])
         nlg_eval_results = metrics.compute(references, predictions, counters)
 
         return {
@@ -133,6 +133,11 @@ class Trainer:
             f"{split}/R1FC": nlg_eval_results["R1FC"],
             f"{split}/R2FC": nlg_eval_results["R2FC"],
             f"{split}/RLFC": nlg_eval_results["RLFC"],
+            f"{split}/BERTSCORE_subset_check": nlg_eval_results[
+                "BERTSCORE_subset_check"
+            ],
+            f"{split}/BERTC": nlg_eval_results["BERTC"],
+            f"{split}/AggregateC": nlg_eval_results["AggregateC"],
         }
 
     def _setup_run(self):
@@ -184,6 +189,7 @@ class Trainer:
             columns=[
                 "id",
                 "texts",
+                "split_sentences",
                 "prompted_text",
                 "label_flags",
                 "label_sentences",
@@ -202,6 +208,7 @@ class Trainer:
                 {
                     "id": batch["id"],
                     "texts": batch["texts"],
+                    "split_sentences": [batch["split_sentences"]],
                     "prompted_text": batch["prompted_text"],
                     "label_flags": batch["label_flags"],
                     "label_sentences": batch["label_sentences"],
@@ -225,6 +232,26 @@ class Trainer:
             predictions_df.to_csv(
                 os.path.join(self.output_dir, f"predictions_{split}.csv"), index=False
             )
+
+        if self.configs.trainer.configs.bertscore_filter:
+            predictions_df = self.pipeline.bertscore_filter(predictions_df)
+
+        if split == "test":
+            # If test, Prepare submission
+            # A text file in this format:
+            # [text_id] [predicted_error_flag] [predicted_error_sentence_id] [predicted_corrected_sentence]
+            with open(
+                os.path.join(self.output_dir, f"prediction.txt"), "w"
+            ) as submission_file:
+                for _, row in predictions_df.iterrows():
+                    submission_file.write(
+                        f"{row['id']} {row['predicted_error_flag']} {row['predicted_error_sentence_id']} {row['predicted_corrected_sentence']}\n"
+                    )
+
+            # Upload to wandb
+            artifact = wandb.Artifact("prediction", type="submission")
+            artifact.add_file(os.path.join(self.output_dir, "prediction.txt"))
+            wandb.log_artifact(artifact)
 
         # Evaluate
         metrics = self.compute_metrics(predictions_df, split)

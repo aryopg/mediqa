@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: gpt35
+  - override /data: mediqa
+  - override /trainer: cot_soap_4_shot
+  - override /prompt: cot_prompt_with_hint

@@ -1,9 +1,10 @@
 defaults:
   - base_trainer_config
 
-name: cot_8_shot
+name: cot_soap_8_shot
 configs:
   epochs: 0
   num_in_context_examples: 8
   cot_prompt: "Let's think step by step"
-  cot_reasons_filepath: "icl_examples/cot_reasons.json"
+  cot_reasons_filepath: "icl_examples/cot_soap_reasons.json"
+  bertscore_filter: false

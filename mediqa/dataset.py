@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 from typing import List, Tuple
 
 import numpy as np
@@ -57,7 +58,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
         self.prompt_template = self.prompt_configs.prompt_template
 
     def _set_icl_examples(self):
-        if self.num_in_context_examples == 0:
+        if self.retriever_configs is None or self.num_in_context_examples == 0:
             return None, None
 
         icl_corpus = pd.read_csv(
@@ -76,8 +77,14 @@ class MEDIQADataset(torch.utils.data.Dataset):
         if not self.cot_prompt:
             return {}
 
-        with open(self.trainer_configs.configs.cot_reasons_filepath, "r") as f:
-            return json.load(f)
+        if os.path.isfile(self.trainer_configs.configs.cot_reasons_filepath):
+            with open(self.trainer_configs.configs.cot_reasons_filepath, "r") as f:
+                return json.load(f)
+        else:
+            print(
+                f"No CoT reasons file found: {self.trainer_configs.configs.cot_reasons_filepath}."
+            )
+            return {}
 
     def get_icl_examples_by_id(self, text_id: str):
         # Get the ICL examples depending on the number of ICL examples allowed
@@ -121,6 +128,35 @@ class MEDIQADataset(torch.utils.data.Dataset):
                 sentence = sentence.replace("\n", " ").replace("\r", " ").strip()
         return sentence
 
+    @staticmethod
+    def split_sentences(sentences: str) -> List[str]:
+        # Split the sentences into lines
+        lines = sentences.strip().split("\n")
+
+        # Placeholder for the processed list
+        processed_list = []
+
+        # Temporary storage for building up sentences or data points
+        temp_sentence = ""
+
+        # Iterate over each line
+        for line in lines:
+            # Check if the line starts with an index (indicating a new sentence or data point)
+            if re.match(r"^\d+", line):
+                if temp_sentence:  # If there's a sentence built up, add it to the list
+                    processed_list.append(temp_sentence.strip())
+                temp_sentence = line  # Start a new sentence/data point
+            else:
+                temp_sentence += (
+                    " " + line
+                )  # Continue building up the current sentence/data point
+
+        # Add the last built-up sentence/data point to the list, if any
+        if temp_sentence:
+            processed_list.append(temp_sentence.strip())
+
+        return processed_list
+
     def parse_data(self) -> dict:
         """Parsing reference file path."""
         df = pd.read_csv(self.data_filename)
@@ -129,6 +165,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
 
         texts = []
         sentences = []
+        split_sentences = []
         label_flags = []
         label_sentences = []
         label_sentence_ids = []
@@ -143,6 +180,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
         for _, row in df.iterrows():
             texts += [str(row["Text"])]
             sentences += [str(row["Sentences"])]
+            split_sentences += [self.split_sentences(str(row["Sentences"]))]
             corrected_sentence = self._preprocess_sentence(row["Corrected Sentence"])
 
             label_flags += [str(row[error_flag_column])]
@@ -184,6 +222,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
             "icl_examples": icl_examples,
             "texts": texts,
             "sentences": sentences,
+            "split_sentences": split_sentences,
             "label_flags": label_flags,
             "label_sentences": label_sentences,
             "label_sentence_ids": label_sentence_ids,
@@ -215,6 +254,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
             "id": self.data["ids"][idx],
             "texts": self.data["texts"][idx],
             "sentences": self.data["sentences"][idx],
+            "split_sentences": self.data["split_sentences"][idx],
             "icl_texts": icl_texts,
             "icl_labels": icl_labels,
             "prompted_text": self.prompt_template.format(

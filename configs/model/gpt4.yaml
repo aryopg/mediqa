@@ -1,11 +1,11 @@
 defaults:
   - base_model_config
 
-name: GPT-3.5-Turbo
+name: GPT-4
 configs:
-  model_name_or_path: gpt-3.5-turbo
+  model_name_or_path: gpt-4-0125-preview
   model_type: api
-  max_seq_len: 16384
+  max_seq_len: 128000
   temperature: 0.0
   top_p: 1
   frequency_penalty: 0

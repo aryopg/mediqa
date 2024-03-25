@@ -1,0 +1,10 @@
+defaults:
+  - base_trainer_config
+
+name: cot_brief_2_shot
+configs:
+  epochs: 0
+  num_in_context_examples: 2
+  cot_prompt: "Let's think step by step"
+  cot_reasons_filepath: "icl_examples/cot_brief_reasons.json"
+  bertscore_filter: true

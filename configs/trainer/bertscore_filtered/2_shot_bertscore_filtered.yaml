@@ -7,4 +7,4 @@ configs:
   num_in_context_examples: 2
   cot_prompt: ""
   cot_reasons_filepath: null
-  bertscore_filter: false
+  bertscore_filter: true

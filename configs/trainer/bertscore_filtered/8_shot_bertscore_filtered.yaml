@@ -1,10 +1,10 @@
 defaults:
   - base_trainer_config
 
-name: 2_shot
+name: 8_shot
 configs:
   epochs: 0
-  num_in_context_examples: 2
+  num_in_context_examples: 8
   cot_prompt: ""
   cot_reasons_filepath: null
-  bertscore_filter: false
+  bertscore_filter: true
