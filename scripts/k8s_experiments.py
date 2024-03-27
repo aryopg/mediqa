@@ -30,7 +30,7 @@ def main():
 
     secret_env_vars = configs["env_vars"]
 
-    run_name = args.train_script.replace(".py", "")
+    run_name = args.train_script.split("/")[1].replace(".py", "")
     print(f"Creating job for: {run_name}")
     job = KubernetesJob(
         name=run_name[:63],
