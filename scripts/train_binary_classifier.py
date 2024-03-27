@@ -99,7 +99,7 @@ def main() -> None:
         bf16=True,
         logging_steps=1,
         output_dir="outputs",
-        optim="adamw",
+        optim="adamw_hf",
         push_to_hub=True,
         push_to_hub_model_id="mediqa_binary_classifier",
         push_to_hub_organization=os.getenv("HF_USERNAME"),
