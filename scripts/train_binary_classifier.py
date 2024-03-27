@@ -69,11 +69,13 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     def tokenize_dataset(ds):
-        result = tokenizer(ds["concat_sentences"], truncation=True, max_length=4096)
+        result = tokenizer(ds["concat_sentences"], truncation=True, max_length=1024)
         return result
 
     train_tokenised = train_dataset.map(tokenize_dataset)
     valid_tokenised = valid_dataset.map(tokenize_dataset)
+
+    print(train_tokenized[:10])
 
     lora_config = LoraConfig(
         r=8,
@@ -101,9 +103,8 @@ def main() -> None:
         output_dir="outputs",
         optim="adamw_hf",
         push_to_hub=True,
-        push_to_hub_model_id="mediqa_binary_classifier",
-        push_to_hub_organization=os.getenv("HF_USERNAME"),
-        push_to_hub_token=os.getenv("HF_UPLOAD_TOKEN"),
+        hub_model_id=f"{os.getenv('HF_USERNAME')}/mediqa_binary_classifier",
+        hub_token=os.getenv("HF_UPLOAD_TOKEN"),
     )
 
     trainer = SFTTrainer(
