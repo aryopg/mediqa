@@ -1,6 +1,0 @@
-defaults:
-  - base_model_config
-
-name: gpt3_api
-configs:
-  model_name_or_path: gpt3_api

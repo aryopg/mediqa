@@ -1,6 +1,0 @@
-prompt_data: "Consider the following clinical note:\n\n{full_text}\n\n"
-prompt_base: "-> Was '{error_sentence}' {qualifier} {category} here? Let’s think step-by-step. "
-prompt_format: "Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"
-
-sys_prompt_base: "You are a clinician reviewing a clinical note that contains one or no error sentence. "
-sys_prompt_format: "Output your response in JSON format with keys “Step-by-step Reasoning” and “Final Answer”, where the value for “Final Answer” is either ‘Yes’ or ‘No’"

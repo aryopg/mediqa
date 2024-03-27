@@ -163,18 +163,15 @@ cython_debug/
 outputs/
 wandb/
 artifacts/
-# biolinkbert/data/*
-biolinkbert/output/*
-biolinkbert/output_/
-biolinkbert/output_/*
 
 *.DS_Store
 
 
 # local files
-scribble.ipynb
-# eda.ipynb
 
+api_keys/
 api_keys/*
+outdated/
+outdated/*
 
-.vscode
+.vscode/

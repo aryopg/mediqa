@@ -1,6 +1,0 @@
-prompt_base: "Please review the following clinical text, which includes patient's medical history, results of medical examinations, interpretations of those results, diagnoses, and treatment plans. Determine if there are any errors in the interpretation of examination results, diagnoses, or treatment plans." 
-prompt_data: "\n\nClinical Text:\n\n{full_text}"
-prompt_format: "Output your response in JSON format with a key “Final Answer”, where the value for “Final Answer” is 'Yes' if there is an error and 'No' if there are no errors."
-
-sys_prompt_base: "You are a clinician reviewing a clinical note that may or may not contain an error. "
-sys_prompt_format: "Output your response in JSON format with a key “Final Answer”, where the value for “Final Answer” is 'Yes' if there is an error and 'No' if there are no errors." # $(prompt_format)

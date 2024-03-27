@@ -1,8 +1,0 @@
-## 'annotate'
-
-prompt_base: "The following clinical text contains factual history of patient illness, medical exam results, interpretation of exam results, diagnoses, and treatments. Your job is to classify each sentence (or each parts of sentences) in the clinical text into whether they describe factual history of present illness, medical exam results, diagnoses, or treatments."
-prompt_data: "\n\nClinical Text:\n\n{full_text}"
-prompt_format: "Output your response in JSON format with keys “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments”. Note that “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments” may not appear in the original text in the said order."
-
-sys_prompt_base: "You are a clinician reviewing a clinical note that may or may not contain an error. "
-sys_prompt_format: "Output your response in JSON format with keys “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments”. Note that “factual history of patient illness”, “medical exam results”, “interpretation of exam results”, “diagnoses”, and “treatments” may not appear in the original text in the said order." # $(prompt_format)
