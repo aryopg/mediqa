@@ -31,7 +31,7 @@ from mediqa.dataset import MEDIQADataset
 def preprocessing(dataset):
     samples = []
     for text in dataset["Text"]:
-        sample = f"Clinical Note: {text} ### Label: "
+        sample = f"Clinical Note: {text}\n\nQuestion: Does this clinical note contain a clinical error?\nAnswer: "
         samples.append(sample)
     return samples
 
@@ -42,6 +42,7 @@ def main() -> None:
     test_dataset = Dataset.from_pandas(
         pd.read_csv(
             "data/March-26-2024-MEDIQA-CORR-Official-Test-Set.csv",
+            # "data/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv",
             encoding="unicode_escape",
         )
     )
@@ -75,18 +76,17 @@ def main() -> None:
             attention_mask=attention_mask,
             max_new_tokens=3,
         )
-        print(outputs[0, input_ids.size(1) :])
         pred = tokenizer.decode(
             outputs[0, input_ids.size(1) :], skip_special_tokens=True
         )
         print(f"{test_sample_tokenised['Text ID']} {pred}")
-        if pred == "Error":
+        if pred == "Yes":
             pred = 1
-        elif pred == "No Error":
+        elif pred == "No":
             pred = 0
         else:
-            pred = 0
             print(f">>>> {pred} is not recognised. Reverting to 0")
+            pred = 0
         preds[test_sample_tokenised["Text ID"]] = pred
 
     if "Error Flag" in test_dataset.column_names:

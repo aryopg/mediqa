@@ -31,10 +31,10 @@ def preprocessing(dataset):
     samples = []
     for text, error_flag in zip(dataset["Text"], dataset["Error Flag"]):
         if int(error_flag) == 0:
-            label = "No Error"
+            label = "No"
         elif int(error_flag) == 1:
-            label = "Error"
-        sample = f"Clinical Note: {text} ### Label: {label}"
+            label = "Yes"
+        sample = f"Clinical Note: {text}\n\nQuestion: Does this clinical note contain a clinical error?\nAnswer: {label}"
         samples.append(sample)
     return samples
 
