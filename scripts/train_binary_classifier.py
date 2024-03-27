@@ -30,7 +30,11 @@ from mediqa.dataset import MEDIQADataset
 def preprocessing(dataset):
     samples = []
     for text, error_flag in zip(dataset["Text"], dataset["Error Flag"]):
-        sample = f"Clinical Note: {text} ### Label: {error_flag}"
+        if int(error_flag) == 0:
+            label = "No Error"
+        elif int(error_flag) == 1:
+            label = "Error"
+        sample = f"Clinical Note: {text} ### Label: {label}"
         samples.append(sample)
     return samples
 
@@ -74,6 +78,8 @@ def main() -> None:
 
     train_tokenised = train_dataset.map(tokenize_dataset)
     valid_tokenised = valid_dataset.map(tokenize_dataset)
+
+    print(train_tokenised[:5])
 
     lora_config = LoraConfig(
         r=8,

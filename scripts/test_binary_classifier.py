@@ -10,6 +10,7 @@ load_dotenv(".env")
 
 import pickle
 
+import huggingface_hub
 import hydra
 import pandas as pd
 import torch
@@ -36,6 +37,8 @@ def preprocessing(dataset):
 
 
 def main() -> None:
+    huggingface_hub.login(token=os.getenv("HF_DOWNLOAD_TOKEN", ""))
+
     test_dataset = Dataset.from_pandas(
         pd.read_csv(
             "data/March-26-2024-MEDIQA-CORR-Official-Test-Set.csv",
@@ -63,9 +66,38 @@ def main() -> None:
     peft_model_id = f"aryopg/mediqa_binary_classifier"
     model = PeftModel.from_pretrained(model, peft_model_id, device_map="auto")
 
+    preds = {}
     for test_sample_tokenised in test_tokenised:
-        outputs = model.generate(**test_sample_tokenised, max_new_tokens=8)
-        print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+        input_ids = torch.tensor([test_sample_tokenised["input_ids"]])
+        attention_mask = torch.tensor([test_sample_tokenised["attention_mask"]])
+        outputs = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_new_tokens=8,
+        )
+        print(outputs[0, input_ids.size(1) :])
+        pred = tokenizer.decode(
+            outputs[0, input_ids.size(1) :], skip_special_tokens=True
+        )
+        print(f"{test_sample_tokenised['Text ID']} {pred}")
+        preds[test_sample_tokenised["Text ID"]] = pred
+
+    if "Error Flag" in test_dataset.column_names:
+        reference_flags = {
+            text_id: flag
+            for text_id, flag in zip(
+                test_dataset["Text ID"], test_dataset["Error Flag"]
+            )
+        }
+        for text_id in reference_flags:
+            if (
+                text_id in predicted_flags
+                and reference_flags[text_id] == predicted_flags[text_id]
+            ):
+                matching_flags_nb += 1
+
+        flags_accuracy = matching_flags_nb / len(reference_flags)
+        print(flags_accuracy)
 
 
 if __name__ == "__main__":
