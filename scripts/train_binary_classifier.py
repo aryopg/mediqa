@@ -75,8 +75,6 @@ def main() -> None:
     train_tokenised = train_dataset.map(tokenize_dataset)
     valid_tokenised = valid_dataset.map(tokenize_dataset)
 
-    print(train_tokenized[:10])
-
     lora_config = LoraConfig(
         r=8,
         lora_alpha=16,
