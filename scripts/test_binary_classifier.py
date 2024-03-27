@@ -57,6 +57,8 @@ def main() -> None:
         low_cpu_mem_usage=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
 
     def tokenize_dataset(ds):
         result = tokenizer(ds["concat_sentences"], truncation=True, max_length=1024)
@@ -74,15 +76,15 @@ def main() -> None:
         outputs = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_new_tokens=3,
+            max_new_tokens=1,
         )
         pred = tokenizer.decode(
             outputs[0, input_ids.size(1) :], skip_special_tokens=True
         )
         print(f"{test_sample_tokenised['Text ID']} {pred}")
-        if pred == "Yes":
+        if "Yes" in pred:
             pred = 1
-        elif pred == "No":
+        elif "No" in pred:
             pred = 0
         else:
             print(f">>>> {pred} is not recognised. Reverting to 0")
