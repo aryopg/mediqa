@@ -60,7 +60,7 @@ def main() -> None:
 
     epochs = 5
     model_name_or_path = "mistralai/Mistral-7B-v0.1"
-    model = AutoModel.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         torch_dtype=torch.bfloat16,
         device_map="auto",
