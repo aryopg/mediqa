@@ -48,6 +48,7 @@ def main():
         namespace=args.namespace,
         kueue_queue_name=f"{args.namespace}-user-queue",
     )
+    print(job.generate_yaml())
 
     # Run the Job on the Kubernetes cluster
     job.run()
