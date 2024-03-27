@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv(".env")
 
-import pickle
+import json
 
 import huggingface_hub
 import hydra
@@ -69,7 +69,7 @@ def main() -> None:
     peft_model_id = f"aryopg/mediqa_binary_classifier"
     model = PeftModel.from_pretrained(model, peft_model_id, device_map="auto")
 
-    preds = {}
+    predicted_flags = {}
     for test_sample_tokenised in test_tokenised:
         input_ids = torch.tensor([test_sample_tokenised["input_ids"]])
         attention_mask = torch.tensor([test_sample_tokenised["attention_mask"]])
@@ -81,7 +81,6 @@ def main() -> None:
         pred = tokenizer.decode(
             outputs[0, input_ids.size(1) :], skip_special_tokens=True
         )
-        print(f"{test_sample_tokenised['Text ID']} {pred}")
         if "Yes" in pred:
             pred = 1
         elif "No" in pred:
@@ -89,7 +88,7 @@ def main() -> None:
         else:
             print(f">>>> {pred} is not recognised. Reverting to 0")
             pred = 0
-        preds[test_sample_tokenised["Text ID"]] = pred
+        predicted_flags[test_sample_tokenised["Text ID"]] = pred
 
     if "Error Flag" in test_dataset.column_names:
         reference_flags = {
@@ -98,6 +97,8 @@ def main() -> None:
                 test_dataset["Text ID"], test_dataset["Error Flag"]
             )
         }
+
+        matching_flags_nb = 0
         for text_id in reference_flags:
             if (
                 text_id in predicted_flags
@@ -107,6 +108,9 @@ def main() -> None:
 
         flags_accuracy = matching_flags_nb / len(reference_flags)
         print(flags_accuracy)
+
+    with open("predictions.json", "w") as f:
+        json.dump(predicted_flags, f, indent=4)
 
 
 if __name__ == "__main__":
