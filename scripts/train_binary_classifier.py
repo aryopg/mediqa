@@ -115,6 +115,7 @@ def main() -> None:
         args=args,
         peft_config=lora_config,
     )
+    trainer.train()
 
 
 if __name__ == "__main__":
