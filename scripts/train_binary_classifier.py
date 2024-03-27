@@ -62,7 +62,7 @@ def main() -> None:
     train_dataset = train_dataset.add_column("concat_sentences", concat_sentences_train)
     valid_dataset = valid_dataset.add_column("concat_sentences", concat_sentences_valid)
 
-    epochs = 5
+    epochs = 3
     model_name_or_path = "mistralai/Mistral-7B-v0.1"
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
@@ -74,12 +74,16 @@ def main() -> None:
 
     def tokenize_dataset(ds):
         result = tokenizer(ds["concat_sentences"], truncation=True, max_length=1024)
+        # add EOS
+        result["input_ids"] = result["input_ids"] + [tokenizer.eos_token_id]
+        result["attention_mask"] = result["attention_mask"] + [1]
         return result
 
     train_tokenised = train_dataset.map(tokenize_dataset)
     valid_tokenised = valid_dataset.map(tokenize_dataset)
 
-    print(train_tokenised[:5])
+    print(train_tokenised.shape)
+    print(valid_tokenised.shape)
 
     lora_config = LoraConfig(
         r=8,
@@ -103,7 +107,7 @@ def main() -> None:
         num_train_epochs=epochs,
         learning_rate=2e-4,
         bf16=True,
-        logging_steps=1,
+        logging_steps=100,
         output_dir="outputs",
         optim="adamw_hf",
         push_to_hub=True,

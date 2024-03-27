@@ -73,13 +73,20 @@ def main() -> None:
         outputs = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_new_tokens=8,
+            max_new_tokens=3,
         )
         print(outputs[0, input_ids.size(1) :])
         pred = tokenizer.decode(
             outputs[0, input_ids.size(1) :], skip_special_tokens=True
         )
         print(f"{test_sample_tokenised['Text ID']} {pred}")
+        if pred == "Error":
+            pred = 1
+        elif pred == "No Error":
+            pred = 0
+        else:
+            pred = 0
+            print(f">>>> {pred} is not recognised. Reverting to 0")
         preds[test_sample_tokenised["Text ID"]] = pred
 
     if "Error Flag" in test_dataset.column_names:
