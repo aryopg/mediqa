@@ -20,7 +20,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer, TrainingArguments
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from trl import SFTTrainer
 
 from mediqa.configs import TrainingConfigs, register_base_configs
