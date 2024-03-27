@@ -13,14 +13,15 @@ import pickle
 import hydra
 import pandas as pd
 import torch
+import transformers
 from datasets import Dataset, load_dataset
-from omegaconf import OmegaConf
 from peft import LoraConfig, TaskType, get_peft_model
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer, TrainingArguments
+from trl import SFTTrainer
 
 from mediqa.configs import TrainingConfigs, register_base_configs
 from mediqa.dataset import MEDIQADataset
@@ -32,11 +33,6 @@ def preprocessing(dataset):
         sample = f"Clinical Note: {text} ### Label: {error_flag}"
         samples.append(sample)
     return samples
-
-
-def tokenize_dataset(ds):
-    result = tokenizer(ds["concat_sentences"], truncation=True, max_length=4096)
-    return result
 
 
 def main() -> None:
@@ -64,13 +60,17 @@ def main() -> None:
 
     epochs = 5
     model_name_or_path = "mistralai/Mistral-7B-v0.1"
-    model = AutoModel.from_pretrained(
-        model_name_or_path,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-        low_cpu_mem_usage=True,
-    )
+    # model = AutoModel.from_pretrained(
+    #     model_name_or_path,
+    #     torch_dtype=torch.bfloat16,
+    #     device_map="auto",
+    #     low_cpu_mem_usage=True,
+    # )
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+
+    def tokenize_dataset(ds):
+        result = tokenizer(ds["concat_sentences"], truncation=True, max_length=4096)
+        return result
 
     train_tokenised = train_dataset.map(tokenize_dataset)
     valid_tokenised = valid_dataset.map(tokenize_dataset)

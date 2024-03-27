@@ -25,7 +25,7 @@ def main():
     args = argument_parser()
     configs = yaml.safe_load(open(args.run_configs_filepath, "r"))
 
-    base_args = f"pip uninstall -y huggingface_hub && pip install huggingface_hub && pip install peft && git clone https://$GIT_TOKEN@github.com/aryopg/mediqa.git --branch {args.git_branch} && cd mediqa && huggingface-cli download aryopg/mediqa --repo-type dataset --local-dir data --token $HF_DOWNLOAD_TOKEN --quiet && "
+    base_args = f"pip uninstall -y huggingface_hub && pip install huggingface_hub && pip install peft trl && git clone https://$GIT_TOKEN@github.com/aryopg/mediqa.git --branch {args.git_branch} && cd mediqa && huggingface-cli download aryopg/mediqa --repo-type dataset --local-dir data --token $HF_DOWNLOAD_TOKEN --quiet && "
     command = f"python {args.train_script}"
 
     secret_env_vars = configs["env_vars"]
