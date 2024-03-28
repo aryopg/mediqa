@@ -169,9 +169,16 @@ artifacts/
 
 # local files
 
+data/
+data/*
+
 api_keys/
 api_keys/*
 outdated/
 outdated/*
 
 .vscode/
+.vscode/*
+
+span_prediction/data/
+span_prediction/data/*

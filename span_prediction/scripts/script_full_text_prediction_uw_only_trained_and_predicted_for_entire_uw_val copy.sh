@@ -1,4 +1,4 @@
-
+# bash span_prediction/scripts/script_full_text_prediction_uw_only_trained_and_predicted_for_entire_uw_val.sh
 num_train_epochs=30
 echo "num_train_epochs = $num_train_epochs"
 
@@ -19,7 +19,7 @@ echo "seed = $seed"
 
 
 # SQUAD
-outdir=~/rds/hpc-work/mediqa_output/prediction/full_text/test_set # ./span_prediction/output/large/full_text # squad_trained/$dataset/num_epochs_$num_train_epochs/lr_$lr/seed_$seed/
+outdir=~/rds/hpc-work/mediqa_output/prediction/full_text/uw_val_4_aryo # ./span_prediction/output/large/full_text # squad_trained/$dataset/num_epochs_$num_train_epochs/lr_$lr/seed_$seed/
 # PAQ
 # outdir = 
 
@@ -29,12 +29,12 @@ echo "outdir = $outdir"
 # --test_file $datadir_error_only/test_set/test_set_processed_full_text_as_input.json \
 
 mkdir -p $outdir
-python3 -u span_prediction/run_qa_mediqa.py --model_name_or_path /home/co-chae/rds/hpc-work/mediqa_output/prediction/full_text/merged_minus_ms_val/checkpoint-738 \
+python3 -u span_prediction/run_qa_mediqa.py --model_name_or_path /home/co-chae/rds/hpc-work/mediqa_output/prediction/full_text/uw_only_training/checkpoint-72 \
     --seed $seed \
     --do_predict \
     --per_device_train_batch_size $batch_size --learning_rate $lr \
     --num_train_epochs $num_train_epochs \
-    --test_file $datadir_error_only/test_set/test_set_processed_full_text_as_input.json \
+    --test_file /home/co-chae/mediqa/span_prediction/data/aryo_ms_val/uw_val_processed_full_text_as_input.json \
     --preprocessing_num_workers 10 \
     --max_seq_length 512 --doc_stride 128 \
     --gradient_accumulation_steps 1 \

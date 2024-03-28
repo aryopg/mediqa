@@ -12,7 +12,9 @@ class MEDIQADataset(torch.utils.data.Dataset):
     def __init__(
         self,
     ):
+        # input_file_name='/home/co-chae/mediqa/span_prediction/data/for_gpt_correction/test_set_for_gpt_correction.csv'
         input_file_name='/home/co-chae/mediqa/span_prediction/data/for_gpt_correction/test_set_for_gpt_correction.csv'
+        # input_file_name=''
         self.df = pd.read_csv(input_file_name, index_col=False) #, encoding='MacRoman')
         # import pdb; pdb.set_trace()
         
