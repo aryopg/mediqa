@@ -49,7 +49,7 @@ def main() -> None:
     concat_sentences_test = preprocessing(test_dataset)
     test_dataset = test_dataset.add_column("concat_sentences", concat_sentences_test)
 
-    model_name_or_path = "mistralai/Mistral-7B-v0.1"
+    model_name_or_path = "epfl-llm/meditron-7b"
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         torch_dtype=torch.bfloat16,
@@ -66,7 +66,7 @@ def main() -> None:
 
     test_tokenised = test_dataset.map(tokenize_dataset)
 
-    peft_model_id = f"aryopg/mediqa_binary_classifier"
+    peft_model_id = f"aryopg/meditron_mediqa_binary_classifier"
     model = PeftModel.from_pretrained(model, peft_model_id, device_map="auto")
 
     predicted_flags = {}

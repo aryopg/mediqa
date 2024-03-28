@@ -62,8 +62,8 @@ def main() -> None:
     train_dataset = train_dataset.add_column("concat_sentences", concat_sentences_train)
     valid_dataset = valid_dataset.add_column("concat_sentences", concat_sentences_valid)
 
-    epochs = 3
-    model_name_or_path = "mistralai/Mistral-7B-v0.1"
+    epochs = 10
+    model_name_or_path = "epfl-llm/meditron-7b"
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         torch_dtype=torch.bfloat16,
@@ -105,13 +105,13 @@ def main() -> None:
         per_device_train_batch_size=1,
         gradient_accumulation_steps=4,
         num_train_epochs=epochs,
-        learning_rate=2e-4,
+        learning_rate=1e-4,
         bf16=True,
         logging_steps=100,
         output_dir="outputs",
         optim="adamw_hf",
         push_to_hub=True,
-        hub_model_id=f"{os.getenv('HF_USERNAME')}/mediqa_binary_classifier",
+        hub_model_id=f"{os.getenv('HF_USERNAME')}/meditron_mediqa_binary_classifier",
         hub_token=os.getenv("HF_UPLOAD_TOKEN"),
     )
 
