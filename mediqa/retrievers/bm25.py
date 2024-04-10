@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -17,14 +17,18 @@ class BM25(BM25Okapi):
 
     def __init__(
         self,
-        corpus: MEDIQADataset,
+        corpus: List[MEDIQADataset],
         tokenizer=None,
         k1=1.5,
         b=0.75,
         epsilon=0.25,
         top_k=5,
     ) -> None:
-        self.corpus_df = pd.DataFrame(corpus.data)
+        self.corpus_df = []
+        for corpora in corpus:
+            corpora_df = pd.DataFrame(corpora.data)
+            self.corpus_df += [corpora_df]
+        self.corpus_df = pd.concat(self.corpus_df).reset_index()
 
         self.top_k = top_k
 
@@ -36,7 +40,6 @@ class BM25(BM25Okapi):
         super().__init__(corpus, tokenizer, k1, b, epsilon)
 
     def get_document_scores(self, query, text_id) -> Dict[str, list]:
-        # Given the section and type, narrow down the search space
         doc_ids = self.corpus_df.index.tolist()
 
         # Tokenize and stem query
@@ -60,7 +63,7 @@ class BM25(BM25Okapi):
                 # Filter out the sentence itself if found in the ranking
                 continue
             else:
-                if doc["label_flags"] == "1":
+                if int(doc["label_flags"]) == 1:
                     # Take only top k examples per label
                     if len(relevant_pos_examples) >= self.top_k:
                         continue
@@ -70,7 +73,7 @@ class BM25(BM25Okapi):
                             "score": score,
                         }
                     ]
-                elif doc["label_flags"] == "0":
+                elif int(doc["label_flags"]) == 0:
                     # Take only top k examples per label
                     if len(relevant_neg_examples) >= self.top_k:
                         continue

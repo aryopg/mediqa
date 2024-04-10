@@ -4,6 +4,7 @@ import os
 import re
 from typing import List, Tuple
 
+import hydra
 import numpy as np
 import pandas as pd
 import torch
@@ -34,6 +35,9 @@ class MEDIQADataset(torch.utils.data.Dataset):
         self.trainer_configs = trainer_configs
         self.retriever_configs = retriever_configs
 
+        self.hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
+        self.hydra_runtime_cfg = self.hydra_cfg["runtime"]
+
         self.split = split
 
         self.data_dir = data_configs.data_dir
@@ -52,6 +56,9 @@ class MEDIQADataset(torch.utils.data.Dataset):
         self.cot_prompt = self.trainer_configs.configs.cot_prompt
         self.cot_reasons = self._set_cot_reasons()
 
+        # If BioLinkBERT hint is enabled
+        self.hints = self._set_hints()
+
         ## Parse data
         self.data = self.parse_data()
 
@@ -62,7 +69,8 @@ class MEDIQADataset(torch.utils.data.Dataset):
             return None, None
 
         icl_corpus = pd.read_csv(
-            os.path.join(self.data_dir, self.retriever_configs.knowledge_corpus)
+            os.path.join(self.data_dir, self.retriever_configs.knowledge_corpus),
+            encoding="unicode_escape",
         )
         icl_examples = pd.read_json(
             os.path.join(
@@ -84,6 +92,17 @@ class MEDIQADataset(torch.utils.data.Dataset):
             print(
                 f"No CoT reasons file found: {self.trainer_configs.configs.cot_reasons_filepath}."
             )
+            return {}
+
+    def _set_hints(self):
+        if (
+            self.trainer_configs.configs.span_predictions
+            and "with_span_hint" in self.hydra_runtime_cfg["choices"]["prompt"]
+        ):
+            with open(self.trainer_configs.configs.span_predictions) as f:
+                span_predictions = json.load(f)
+            return span_predictions
+        else:
             return {}
 
     def get_icl_examples_by_id(self, text_id: str):
@@ -159,7 +178,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
 
     def parse_data(self) -> dict:
         """Parsing reference file path."""
-        df = pd.read_csv(self.data_filename)
+        df = pd.read_csv(self.data_filename, encoding="unicode_escape")
 
         text_ids = df["Text ID"].tolist()
 
@@ -181,13 +200,20 @@ class MEDIQADataset(torch.utils.data.Dataset):
             texts += [str(row["Text"])]
             sentences += [str(row["Sentences"])]
             split_sentences += [self.split_sentences(str(row["Sentences"]))]
-            corrected_sentence = self._preprocess_sentence(row["Corrected Sentence"])
-
-            label_flags += [str(row[error_flag_column])]
-            label_sentences += [corrected_sentence]
-            label_sentence_ids += [str(row["Error Sentence ID"])]
+            if self.split == "test":
+                label_flags += [-999]
+                label_sentences += [""]
+                label_sentence_ids += [-999]
+            else:
+                corrected_sentence = self._preprocess_sentence(
+                    row["Corrected Sentence"]
+                )
+                label_flags += [int(row[error_flag_column])]
+                label_sentences += [corrected_sentence]
+                label_sentence_ids += [str(row["Error Sentence ID"])]
 
             if self.icl_corpus is not None and self.icl_examples is not None:
+                icl_error_flag_column = "Error Flag"
                 sample_icl_example_ids = self.get_icl_examples_by_id(row["Text ID"])
                 sample_icl_examples = []
                 for sample_icl_example_id in sample_icl_example_ids:
@@ -197,7 +223,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
                     sample_icl_example = {
                         "sentences": sample_icl_example["Sentences"].tolist()[0],
                         "label_flags": str(
-                            sample_icl_example[error_flag_column].tolist()[0]
+                            sample_icl_example[icl_error_flag_column].tolist()[0]
                         ),
                         "label_sentences": self._preprocess_sentence(
                             sample_icl_example["Corrected Sentence"].tolist()[0]
@@ -237,6 +263,7 @@ class MEDIQADataset(torch.utils.data.Dataset):
                 icl_texts += [
                     self.prompt_template.format(
                         clinical_sentences=icl_example["sentences"],
+                        span_hint="",
                         cot_prompt=self.cot_prompt,
                     )
                 ]
@@ -250,6 +277,16 @@ class MEDIQADataset(torch.utils.data.Dataset):
                     }
                 ]
 
+        if self.hints:
+            base_hint_prompt = (
+                "- The clinician said that you MAY want to pay attention to the mention of '{hint}'. "
+                "If you believe that the mention is incorrect, ONLY SWAP this mention with something more probable. "
+                "DO NOT MODIFY the sentence in any other way.\n"
+            )
+            span_hint = base_hint_prompt.format(hint=self.hints[self.data["ids"][idx]])
+        else:
+            span_hint = "\n"
+
         return {
             "id": self.data["ids"][idx],
             "texts": self.data["texts"][idx],
@@ -259,9 +296,10 @@ class MEDIQADataset(torch.utils.data.Dataset):
             "icl_labels": icl_labels,
             "prompted_text": self.prompt_template.format(
                 clinical_sentences=self.data["sentences"][idx],
+                span_hint=span_hint,
                 cot_prompt=self.cot_prompt,
             ),
-            "label_flags": int(self.data["label_flags"][idx]),
+            "label_flags": self.data["label_flags"][idx],
             "label_sentences": self.data["label_sentences"][idx],
             "label_sentence_ids": self.data["label_sentence_ids"][idx],
         }

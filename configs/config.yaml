@@ -1,10 +1,10 @@
 defaults:
   - base_config
   - data: mediqa
-  - model: mistral_7b_instruct
+  - model: gpt35
   - trainer: 0_shot
   - retriever: bm25
-  - prompt: prompt_0
+  - prompt: basic_prompt
   - experiment: null
   - _self_
 

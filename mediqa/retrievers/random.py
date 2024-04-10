@@ -1,5 +1,5 @@
 import random
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -15,12 +15,14 @@ class Random:
 
     """
 
-    def __init__(self, corpus: MEDIQADataset, top_k=5, **kwargs) -> None:
-        self.corpus_df = pd.DataFrame(corpus.data)
+    def __init__(self, corpus: List[MEDIQADataset], top_k=5, **kwargs) -> None:
+        self.corpus_df = []
+        for corpora in corpus:
+            self.corpus_df += [pd.DataFrame(corpora.data)]
+        self.corpus_df = pd.concat(self.corpus_df)
         self.top_k = top_k
 
     def get_document_scores(self, query, text_id) -> Dict[str, list]:
-        # Given the section and type, narrow down the search space
         pos_docs = self.corpus_df.loc[
             (self.corpus_df["label_flags"] == "1") & (self.corpus_df["ids"] != text_id)
         ]["ids"].tolist()

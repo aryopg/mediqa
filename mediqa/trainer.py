@@ -29,6 +29,8 @@ class Trainer:
         self.hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
         self.output_dir = self.hydra_cfg["runtime"]["output_dir"]
 
+        print(f"Output directory: {self.output_dir}")
+
         self._load_dataloaders()
         self._load_pipeline()
         self._load_accelerator()
@@ -253,18 +255,28 @@ class Trainer:
             artifact.add_file(os.path.join(self.output_dir, "prediction.txt"))
             wandb.log_artifact(artifact)
 
-        # Evaluate
-        metrics = self.compute_metrics(predictions_df, split)
+            if self.accelerator:
+                self.accelerator.log(
+                    {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
+                )
+            else:
+                wandb.log(
+                    {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
+                )
 
-        # Log
-        print(metrics)
-        if self.accelerator:
-            self.accelerator.log(
-                metrics
-                | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
-            )
         else:
-            wandb.log(
-                metrics
-                | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
-            )
+            # Evaluate
+            metrics = self.compute_metrics(predictions_df, split)
+
+            # Log
+            print(metrics)
+            if self.accelerator:
+                self.accelerator.log(
+                    metrics
+                    | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
+                )
+            else:
+                wandb.log(
+                    metrics
+                    | {f"{split}_prediction_df": wandb.Table(dataframe=predictions_df)}
+                )

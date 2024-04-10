@@ -34,13 +34,13 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 class ReasonInstructions(Enum):
     brief = (
-        "Please present a brief reasoning that leads to the groundtruth JSON answer provided. "
+        "Please present a brief reasoning that leads to the groundtruth JSON answer provided. Do not mention 'correction provided' or 'groundtruth answer'.\n"
         "Return the reason in a JSON format with key 'reason'\n"
         "Reason: "
     )
     long = (
         "Please present a step-by-step reasoning that leads to the groundtruth JSON answer provided. "
-        "Include any considerations, medical standards, or guidelines that you deem as helpful in your assessment. "
+        "Include any considerations, medical standards, or guidelines that you deem as helpful in your assessment. Do not mention 'correction provided' or 'groundtruth answer'.\n"
         "Return the reason in a JSON format with key 'reason'\n"
         "Reason: "
     )
@@ -49,7 +49,7 @@ class ReasonInstructions(Enum):
         "You may follow this reasoning steps:\n"
         "First, organise the clinical note into a structured SOAP format (Subjective, Objective, Assessment, Plan).\n"
         "Second, identify an inconsistency in the collection of clinical facts, if any.\n"
-        "Lastly, present the reasoning that leads to the groundtruth JSON answer provided given the SOAP-structured clinical facts\n"
+        "Lastly, present the reasoning that leads to the groundtruth JSON answer provided given the SOAP-structured clinical facts. Do not mention 'correction provided' or 'groundtruth answer'.\n"
         "Return the reason as contiguous text in a JSON format with key 'reason'\n"
         "Reason: "
     )
@@ -127,20 +127,13 @@ def generate_cot_reasons(
     return cot_reason
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config")
-def main(configs: TrainingConfigs) -> None:
-    missing_keys: set[str] = OmegaConf.missing_keys(configs)
-    if missing_keys:
-        raise RuntimeError(f"Got missing keys in config:\n{missing_keys}")
-
-    cot_file_path = configs.trainer.configs.cot_reasons_filepath
-
-    # OpenAI client
-    model_name = configs.model.configs.model_name_or_path
-    client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", ""),
-    )
-
+def generate_cot_reasons_per_split(
+    client,
+    model_name,
+    configs,
+    split,
+    cot_file_path,
+):
     generation_configs = {
         "temperature": configs.model.configs.temperature,
         "top_p": configs.model.configs.top_p,
@@ -154,7 +147,7 @@ def main(configs: TrainingConfigs) -> None:
         configs.prompt,
         configs.trainer,
         None,
-        split="train",
+        split=split,
     )
     dataloader = DataLoader(
         dataset,
@@ -166,15 +159,13 @@ def main(configs: TrainingConfigs) -> None:
         # Attempt to read the existing data
         with open(cot_file_path, "r") as file:
             data = json.load(file)
-        train_samples_w_cot = set([key for key in list(data.keys())])
+        samples_w_cot = set([key for key in list(data.keys())])
     except FileNotFoundError:
-        train_samples_w_cot = set()
-
-    print(f"Existing reasons found: {len(train_samples_w_cot)}/{len(dataloader)}")
+        samples_w_cot = set()
 
     for batch in tqdm(dataloader):
         # Skip if already processed
-        if batch["id"][0] in train_samples_w_cot:
+        if batch["id"][0] in samples_w_cot:
             continue
         try:
             cot_reason = generate_cot_reasons(
@@ -191,6 +182,30 @@ def main(configs: TrainingConfigs) -> None:
         except Exception as e:
             print(f"Exception: {e}")
             print(f"Failed to generate reason: {batch['id'][0]}")
+
+
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(configs: TrainingConfigs) -> None:
+    missing_keys: set[str] = OmegaConf.missing_keys(configs)
+    if missing_keys:
+        raise RuntimeError(f"Got missing keys in config:\n{missing_keys}")
+
+    cot_file_path = configs.trainer.configs.cot_reasons_filepath
+
+    # OpenAI client
+    model_name = configs.model.configs.model_name_or_path
+    client = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY", ""),
+    )
+
+    for split in ["train", "valid", "test"]:
+        generate_cot_reasons_per_split(
+            client,
+            model_name,
+            configs,
+            split,
+            cot_file_path,
+        )
 
 
 if __name__ == "__main__":

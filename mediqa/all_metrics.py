@@ -3,11 +3,12 @@ import re
 import string
 
 import bert_score.score as bertscore
-import bleurt.score as bleurtscore
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 from rouge import Rouge
+
+import bleurt.score as bleurtscore
 
 
 def parse_reference_file(filepath):
@@ -249,7 +250,7 @@ class NLGMetrics(object):
             bleurtscorer = bleurtscore.BleurtScorer(checkpoint="BLEURT-20")
 
             bleurtscores = bleurtscorer.score(
-                references=references, candidates=predictions, batch_size=1
+                references=references, candidates=predictions, batch_size=100
             )
             ## clip scores to [0,1]
             bleurtscores = np.array([clip(num) for num in bleurtscores])

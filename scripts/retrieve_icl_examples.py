@@ -36,7 +36,7 @@ def load_data(configs: TrainingConfigs):
 def retrieve(
     retriever_configs: RetrieverConfigs,
     query_corpus: MEDIQADataset,
-    knowledge_corpus: MEDIQADataset,
+    knowledge_corpus: List[MEDIQADataset],
 ):
     # Create BM25 object
     retriever = getattr(retrievers, retriever_configs.name)(
@@ -66,12 +66,12 @@ def main(configs: TrainingConfigs):
     outputs_dir = configs.retriever.icl_examples_dir
     os.makedirs(outputs_dir, exist_ok=True)
 
-    for split in ["train", "valid", "test"]:
+    for split in ["test"]:
         # Run retrieval
         relevant_documents = retrieve(
             configs.retriever,
             query_corpus=datasets[split],
-            knowledge_corpus=datasets["train"],
+            knowledge_corpus=[datasets["train"], datasets["valid"]],
         )
         # Save the in context examples as a json file
         with open(

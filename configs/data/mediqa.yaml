@@ -5,6 +5,7 @@ data_dir: data
 train_data_filename: Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
 valid_data_filename: Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
 test_data_filename: Feb_5_2024_UW_Validation_Set_Updated/MEDIQA-CORR-2024-UW-ValidationSet-1-Full_Feb.csv
+# test_data_filename: March-26-2024-MEDIQA-CORR-Official-Test-Set.csv
 data_loader_configs:
   batch_size: 1
   num_workers: 8

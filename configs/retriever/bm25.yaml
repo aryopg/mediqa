@@ -3,7 +3,7 @@ defaults:
 
 name: BM25
 icl_examples_dir: icl_examples/bm25
-knowledge_corpus: Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
+knowledge_corpus: MEDIQA-CORR-2024-MS+UW-Train+Val.csv
 configs:
   k1: 1.5
   b: 0.75

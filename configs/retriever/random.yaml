@@ -3,6 +3,6 @@ defaults:
 
 name: Random
 icl_examples_dir: icl_examples/random
-knowledge_corpus: Feb_1_2024_MS_Train_Val_Datasets/MEDIQA-CORR-2024-MS-TrainingData.csv
+knowledge_corpus: MEDIQA-CORR-2024-MS+UW-Train+Val.csv
 configs:
   top_k: 10

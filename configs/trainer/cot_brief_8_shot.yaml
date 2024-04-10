@@ -7,4 +7,5 @@ configs:
   num_in_context_examples: 8
   cot_prompt: "Let's think step by step"
   cot_reasons_filepath: "icl_examples/cot_brief_reasons.json"
+  span_predictions: "icl_examples/biolinkbert_span_predictions.json"
   bertscore_filter: false

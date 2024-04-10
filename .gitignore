@@ -160,11 +160,14 @@ cython_debug/
 #.idea/
 
 data/*
+contexts/
 outputs/
 wandb/
 artifacts/
+predictions/
+fava_predictions/
 
-*.DS_Store
+*/.DS_Store
 
 */submissions/*
 */valid_submissions/*

@@ -5,6 +5,7 @@ import time
 from itertools import combinations, product
 from typing import List, Optional, Tuple
 
+import json_repair
 import pandas as pd
 from bert_score import score
 from omegaconf import OmegaConf
@@ -36,8 +37,13 @@ class APIPipeline(BasePipeline):
     @staticmethod
     def _label_template(label):
         expected_label = {}
-        if label["label_reason"]:
-            expected_label["reason"] = label["label_reason"]
+        if len(label["label_reason"]):
+            if type(label["label_reason"]) == list:
+                if label["label_reason"][0]:
+                    expected_label["reason"] = label["label_reason"][0]
+            elif type(label["label_reason"]) == str:
+                if label["label_reason"]:
+                    expected_label["reason"] = label["label_reason"]
         if label["label_flags"] == 0:
             expected_label["incorrect_sentence_id"] = -1
             expected_label["correction"] = "NA"
@@ -91,8 +97,15 @@ class APIPipeline(BasePipeline):
 
     @staticmethod
     def postprocess_prediction(generated_text):
+        if "{" in generated_text and "}" in generated_text:
+            json_string = generated_text[
+                generated_text.find("{") : generated_text.rfind("}") + 1
+            ]
+        else:
+            # Most likely will fail
+            json_string = generated_text
         try:
-            jsonified_text = json.loads(generated_text)
+            jsonified_text = json.loads(json_string)
 
             if jsonified_text is None:
                 predicted_error_flag = 0
@@ -118,6 +131,28 @@ class APIPipeline(BasePipeline):
                     predicted_corrected_sentence = "NA"
                     success = False
         except json.decoder.JSONDecodeError as e:
+            try:
+                print("Desperate fix with json_repair")
+                jsonified_text = json_repair.loads(json_string)
+                if jsonified_text["correction"] == "NA":
+                    predicted_error_flag = 0
+                    predicted_error_sentence_id = -1
+                    predicted_corrected_sentence = "NA"
+                else:
+                    predicted_error_flag = 1
+                    predicted_error_sentence_id = int(
+                        jsonified_text["incorrect_sentence_id"]
+                    )
+                    predicted_corrected_sentence = jsonified_text["correction"]
+            except Exception as e:
+                print("json_repair failed too")
+                print(e)
+                predicted_error_flag = 0
+                predicted_error_sentence_id = -1
+                predicted_corrected_sentence = "NA"
+            success = False
+        except TypeError as e:
+            print("Failed postprocessing")
             predicted_error_flag = 0
             predicted_error_sentence_id = -1
             predicted_corrected_sentence = "NA"

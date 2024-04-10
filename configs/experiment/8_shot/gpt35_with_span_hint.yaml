@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: gpt35
+  - override /data: mediqa
+  - override /trainer: 8_shot
+  - override /prompt: basic_prompt_with_span_hint
