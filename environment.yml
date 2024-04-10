@@ -31,5 +31,8 @@ dependencies:
   - transformers
   - tokenizers
   - openai
+  - seaborn
   - pip:
-    - rouge
+      - rouge
+      - bert-score
+      - -e ./bleurt
