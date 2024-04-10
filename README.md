@@ -13,6 +13,7 @@
 ### Create Environment
 ```bash
 conda env create -f environment.yml
+conda activate mediqa
 ```
 
 ### Create an environment file
@@ -35,35 +36,35 @@ data/Jan_26_2024_MS_Datasets/...
 data/Jan_31_2024_UW_Dataset/...
 ```
 
-## Experiment!
+## Experiment
 
-### Baselines
-
-```bash
-python scripts/main.py experiment=2_shot/gpt35
-```
 
 ### CoT few shot
 
 We generated CoT reasonings using GPT3.5 model.
-We prompted the model to reason why the groundtruth correction is plausible given the incorrect clinical text.
-We, then, manually postprocessed the reason to fit more into the narrative of a CoT reason.
-For instance, around 100 instances of the generated reasons contain phrases that are not fitting to the CoT scenario, such as "The correction provided is more plausible ..." (notice that in the CoT scenario, the model generates the correction at the end, thus it does not make sense to say "The correction provided" early in the reason)
+We prompted the model to reason why the groundtruth correction is correct given the incorrect clinical text.
 
-### Retrieval Augmented
-
-We used ElasticSearch default BM25 settings as outlined [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-similarity.html#bm25):
-```
-k1 = 1.2
-b = 0.75
-discount_overlaps = True
+```bash
+# Generate Brief CoT reasons
+python scripts/generate_cot_reasons.py experiment=cot_brief_2_shot/gpt35
+# Generate Long CoT reasons
+python scripts/generate_cot_reasons.py experiment=cot_long_2_shot/gpt35
+# Generate SOAP CoT reasons
+python scripts/generate_cot_reasons.py experiment=cot_soap_2_shot/gpt35
 ```
 
-- PMC-Patient ([link](https://huggingface.co/datasets/zhengyun21/PMC-Patients))
-- PubMed
-- UMLS Metathesaurus ([link](https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/data/kbs/2023-04-23/umls_2022_ab_cat0129.jsonl))
+Admittedly, the chosen config file is "hacky" because actually all we need from the config files are the name (`cot_brief`, `cot_long`, or `cot_soap`) and path to store the CoT reasons.
 
+### Baselines
 
-## Results
+```bash
+python scripts/main.py experiment=EXPERIMENT_NAME
+```
 
-https://www.overleaf.com/1195375627krhjfkwgqdjr#c3a746
+`EXPERIMENT_NAME` should be replaced by the path to the experiment that you'd like to run. For instance, if you want to run our best performing solution (8-shot + Brief CoT + Type Hint + Span Hint), you should do:
+
+```bash
+python scripts/main.py experiment=cot_brief_8_shot/gpt35_with_span_hint
+```
+
+You can inspect the YAML config file by navigating to: `configs/experiment/cot_brief_8_shot/gpt35_with_span_hint.yaml`
