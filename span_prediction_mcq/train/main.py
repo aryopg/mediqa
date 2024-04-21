@@ -1,5 +1,7 @@
-#!/usr/bin/env python
-# coding=utf-8
+# cd mediqa
+# python span_prediction_mcq/train/main.py +exp=train / predict
+
+
 # Copyright 2020 The HuggingFace Team All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,20 +15,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Fine-tuning the library models for question answering.
-"""
-# You can also adapt this script on your own question answering task. Pointers for this are left as comments.
 
-import logging
 import os
-import sys
-
-import datasets
+import hydra
+from omegaconf import OmegaConf
+from dataclasses import dataclass, field, asdict
 import transformers
+import datasets
 from datasets import load_dataset, load_metric
 from prepare_features import prepare_train_features, prepare_validation_features
-from trainer_qa_mediqa import QuestionAnsweringTrainer
+from trainer import QuestionAnsweringTrainer
 from transformers import (
     AutoConfig,
     AutoModelForQuestionAnswering,
@@ -40,30 +38,20 @@ from transformers import (
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import check_min_version
-from transformers.utils.versions import require_version
-from utils_qa import postprocess_qa_predictions
+from postprocess import postprocess_qa_predictions
+from trainer_args import DataTrainingArguments, ModelArguments, BaseConfigs, register_base_configs
 
 os.environ['WANDB_PROJECT'] = 'MEDIQA'
-os.environ['WANDB_ENTITY'] = 'clee1997'
 
-# Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.9.0")
+@hydra.main(version_base=None, config_path='../conf/conf_training', config_name='base_config')
+def main(configs: BaseConfigs) -> None:
 
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/question-answering/requirements.txt")
+    model_args, data_args = configs.model, configs.data
+    training_args = dict(configs.training)
+    training_args = TrainingArguments(**training_args)
+    
+    import pdb; pdb.set_trace() 
 
-# logger = logging.getLogger(__name__)
-
-
-from args import DataTrainingArguments, ModelArguments
-
-
-def main():
-
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses() # this would be used for our purposes
-
-    # Detecting last checkpoint.
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
@@ -78,7 +66,6 @@ def main():
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
 
-    # Set seed before initializing model.
     set_seed(training_args.seed)
 
     if data_args.dataset_name is not None:
@@ -98,7 +85,7 @@ def main():
         if data_args.test_file is not None:
             data_files["test"] = data_args.test_file
             extension = data_args.test_file.split(".")[-1]
-        raw_datasets = load_dataset(extension, data_files=data_files, cache_dir=model_args.cache_dir) #field="data",
+        raw_datasets = load_dataset(extension, data_files=data_files, cache_dir=model_args.cache_dir) 
 
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
@@ -117,7 +104,7 @@ def main():
     if model_args.model_name_or_path:
         model = AutoModelForQuestionAnswering.from_pretrained(
             model_args.model_name_or_path,
-            from_tf=False,#bool(".ckpt" in model_args.model_name_or_path),
+            from_tf=False,
             config=config,
             cache_dir=model_args.cache_dir,
             revision=model_args.model_revision,
@@ -128,7 +115,6 @@ def main():
         print ("config:", config)
         model = AutoModelForQuestionAnswering.from_config(config)
 
-    # Tokenizer check: this script requires a fast tokenizer.
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
         raise ValueError(
             "This example script only works for models that have a fast tokenizer. Checkout the big table of models "
@@ -136,8 +122,6 @@ def main():
             "requirement"
         )
 
-    # Preprocessing the datasets.
-    # Preprocessing is slighlty different for training and evaluation.
     if training_args.do_train:
         column_names = raw_datasets["train"].column_names
     elif training_args.do_eval:
@@ -147,11 +131,7 @@ def main():
     question_column_name = "question" if "question" in column_names else column_names[0]
     context_column_name = "context" if "context" in column_names else column_names[1]
     answer_column_name = "answers" if "answers" in column_names else column_names[2]
-    # question_column_name = "question" 
-    # context_column_name = "Text" 
-    # answer_column_name = 'Answer'
 
-    # Padding side determines if we do (question|context) or (context|question).
     pad_on_right = tokenizer.padding_side == "right"
 
     if data_args.max_seq_length > tokenizer.model_max_length:
@@ -161,15 +141,12 @@ def main():
         )
     max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
 
-    # Training preprocessing
-
 
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
         train_dataset = raw_datasets["train"]
         if data_args.max_train_samples is not None:
-            # We will select sample from whole data if agument is specified
             train_dataset = train_dataset.select(range(data_args.max_train_samples))
         # Create train feature from dataset
         train_dataset = train_dataset.map(
@@ -181,20 +158,14 @@ def main():
             desc="Running tokenizer on train dataset",
         )
         if data_args.max_train_samples is not None:
-            # Number of samples might increase during Feature Creation, We select only specified max samples
             train_dataset = train_dataset.select(range(data_args.max_train_samples))
-
-    # Validation preprocessing
-
 
     if training_args.do_eval:
         if "validation" not in raw_datasets:
             raise ValueError("--do_eval requires a validation dataset")
         eval_examples = raw_datasets["validation"]
         if data_args.max_eval_samples is not None:
-            # We will select sample from whole data
             eval_examples = eval_examples.select(range(data_args.max_eval_samples))
-        # Validation Feature Creation
         with training_args.main_process_first(desc="validation dataset map pre-processing"):
             eval_dataset = eval_examples.map(
                 lambda examples: prepare_validation_features(examples, tokenizer, data_args, question_column_name, context_column_name, pad_on_right, max_seq_length),
@@ -205,7 +176,6 @@ def main():
                 desc="Running tokenizer on validation dataset",
             )
         if data_args.max_eval_samples is not None:
-            # During Feature creation dataset samples might increase, we will select required samples again
             eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
 
     if training_args.do_predict:
@@ -226,21 +196,16 @@ def main():
                 desc="Running tokenizer on prediction dataset",
             )
         if data_args.max_predict_samples is not None:
-            # During Feature creation dataset samples might increase, we will select required samples again
             predict_dataset = predict_dataset.select(range(data_args.max_predict_samples))
 
-    # Data collator
-    # We have already padded to max length if the corresponding flag is True, otherwise we need to pad in the data
-    # collator.
     data_collator = (
         default_data_collator
         if data_args.pad_to_max_length
         else DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8 if training_args.fp16 else None)
     )
 
-    # Post-processing:
     def post_processing_function(examples, features, predictions, stage="eval"):
-        # Post-processing: we match the start logits and end logits to answers in the original context.
+        
         predictions = postprocess_qa_predictions(
             examples=examples,
             features=features,
@@ -250,10 +215,9 @@ def main():
             max_answer_length=data_args.max_answer_length,
             null_score_diff_threshold=data_args.null_score_diff_threshold,
             output_dir=training_args.output_dir,
-            # log_level=log_level,
             prefix=stage,
         )
-        # Format the result to the format the metric expects.
+        
         if data_args.version_2_with_negative:
             formatted_predictions = [
                 {"id": k, "prediction_text": v, "no_answer_probability": 0.0} for k, v in predictions.items()
@@ -269,7 +233,7 @@ def main():
     def compute_metrics(p: EvalPrediction):
         return metric.compute(predictions=p.predictions, references=p.label_ids)
 
-    # Initialize our Trainer
+    # Initialize Trainer
     trainer = QuestionAnsweringTrainer(
         model=model,
         args=training_args,
@@ -290,7 +254,7 @@ def main():
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        trainer.save_model()  # Saves the tokenizer too for easy upload
+        trainer.save_model() 
 
         metrics = train_result.metrics
         max_train_samples = (
@@ -345,13 +309,8 @@ def main():
             else:
                 kwargs["dataset"] = data_args.dataset_name
 
-        # trainer.push_to_hub(**kwargs)
-
-
-def _mp_fn(index):
-    # For xla_spawn (TPUs)
-    main()
 
 
 if __name__ == "__main__":
+    register_base_configs()
     main()

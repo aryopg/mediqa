@@ -1,0 +1,4 @@
+save_path: output # /gpt_{gpt_version}_prediction_res_{time_string}.csv
+model_name: gpt-3.5-turbo
+correction_input: output/test_set_for_gpt_correction.csv
+num_opts: 4

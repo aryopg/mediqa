@@ -1,5 +1,13 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Optional
+
+from dataclasses import dataclass
+from typing import List
+
+from hydra.core.config_store import ConfigStore
+from omegaconf import MISSING
+from transformers import TrainingArguments
+
 
 
 @dataclass
@@ -8,7 +16,7 @@ class ModelArguments:
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
     """
 
-    model_name_or_path: str = field(
+    model_name_or_path: Optional[str] = field(
         default=None,
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
@@ -129,21 +137,33 @@ class DataTrainingArguments:
         },
     )
 
-    def __post_init__(self):
-        if (
-            self.dataset_name is None
-            and self.train_file is None
-            and self.validation_file is None
-            and self.test_file is None
-        ):
-            raise ValueError("Need either a dataset name or a training/validation file/test_file.")
-        else:
-            if self.train_file is not None:
-                extension = self.train_file.split(".")[-1]
-                assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
-            if self.validation_file is not None:
-                extension = self.validation_file.split(".")[-1]
-                assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
-            if self.test_file is not None:
-                extension = self.test_file.split(".")[-1]
-                assert extension in ["csv", "json"], "`test_file` should be a csv or a json file."
+@dataclass
+class TrainingConfig:
+    output_dir: str = "./outputs"
+    num_train_epochs: Optional[int] = None
+    per_device_train_batch_size: Optional[int] = None
+    per_device_eval_batch_size: Optional[int] = None
+    learning_rate: Optional[float] = 5e-06
+    seed: Optional[int] = 42
+    do_train: Optional[bool] = False
+    do_eval: Optional[bool] = False
+    do_predict: Optional[bool] = False
+    save_strategy: Optional[str] = 'epoch'
+    save_total_limit: Optional[int] = 1
+    evaluation_strategy: Optional[str] = None
+    eval_steps: Optional[int] = None
+    load_best_model_at_end: Optional[bool] = True
+    metric_for_best_model: Optional[str] = 'f1'
+    greater_is_better: Optional[bool] = True
+    overwrite_output_dir: Optional[bool] = True
+    
+@dataclass
+class BaseConfigs:
+    base_path: Optional[str] = '/mediqa'
+    model: ModelArguments = field(default_factory=ModelArguments)
+    data: DataTrainingArguments = field(default_factory=DataTrainingArguments)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+
+def register_base_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(name="base_configs_default", node=BaseConfigs)

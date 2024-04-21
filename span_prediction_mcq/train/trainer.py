@@ -12,20 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-A subclass of `Trainer` specific to Question-Answering tasks
-"""
+
 import os
 
 os.environ["WANDB_PROJECT"] = "mediqa"  # name your W&B project
-# os.environ["WANDB_LOG_MODEL"] = "checkpoint"
-
 
 from transformers import Trainer
 from transformers.trainer_utils import PredictionOutput
 
-
-## ahhh i see i see. 
 class QuestionAnsweringTrainer(Trainer):
     def __init__(self, *args, eval_examples=None, post_process_function=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,7 +33,6 @@ class QuestionAnsweringTrainer(Trainer):
         
         # print(self.compute_metrics)
 
-        # Temporarily disable metric computation, we will do it in the loop here.
         compute_metrics = self.compute_metrics
         self.compute_metrics = None
         eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
@@ -47,8 +40,6 @@ class QuestionAnsweringTrainer(Trainer):
             output = eval_loop(
                 eval_dataloader,
                 description="Evaluation",
-                # No point gathering the predictions if there are no metrics, otherwise we defer to
-                # self.args.prediction_loss_only
                 prediction_loss_only=True if compute_metrics is None else None,
                 ignore_keys=ignore_keys,
             )
@@ -57,17 +48,8 @@ class QuestionAnsweringTrainer(Trainer):
 
         if self.post_process_function is not None and self.compute_metrics is not None:
             eval_preds = self.post_process_function(eval_examples, eval_dataset, output.predictions)
-            # print(eval_preds)
-            # print()
-            # print(eval_preds[0])
-            # print()
-            # print(dir(eval_preds))
-            
-            print(eval_preds.label_ids)
-            print(eval_preds.predictions)
             metrics = self.compute_metrics(eval_preds)
 
-            # Prefix all keys with metric_key_prefix + '_'
             for key in list(metrics.keys()):
                 if not key.startswith(f"{metric_key_prefix}_"):
                     metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
@@ -90,8 +72,6 @@ class QuestionAnsweringTrainer(Trainer):
             output = eval_loop(
                 predict_dataloader,
                 description="Prediction",
-                # No point gathering the predictions if there are no metrics, otherwise we defer to
-                # self.args.prediction_loss_only
                 prediction_loss_only=True if compute_metrics is None else None,
                 ignore_keys=ignore_keys,
             )
@@ -104,11 +84,8 @@ class QuestionAnsweringTrainer(Trainer):
         predictions = self.post_process_function(predict_examples, predict_dataset, output.predictions, "predict")
         metrics = self.compute_metrics(predictions)
 
-        # Prefix all keys with metric_key_prefix + '_'
         for key in list(metrics.keys()):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
-
-        self.log(metrics) #Added
-
+        self.log(metrics) 
         return PredictionOutput(predictions=predictions.predictions, label_ids=predictions.label_ids, metrics=metrics)
