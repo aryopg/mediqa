@@ -1,4 +1,0 @@
-save_path: output
-model_name: gpt-3.5-turbo
-correction_input: output/test_set_for_gpt_correction.csv
-num_opts: 2

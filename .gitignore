@@ -178,6 +178,9 @@ api_keys/*
 outdated/
 outdated/*
 
+.hydra/
+.hydra/*
+
 .vscode/
 .vscode/*
 
