@@ -171,3 +171,12 @@ fava_predictions/
 
 */submissions/*
 */valid_submissions/*
+
+.hydra/
+.hydra/*
+
+.vscode/
+.vscode/*
+
+outputs/
+output/

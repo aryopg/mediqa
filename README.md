@@ -68,3 +68,7 @@ python scripts/main.py experiment=cot_brief_8_shot/gpt35_with_span_hint
 ```
 
 You can inspect the YAML config file by navigating to: `configs/experiment/cot_brief_8_shot/gpt35_with_span_hint.yaml`
+
+### Error Span Prediction + MCQ Prompts
+
+Navigate to [`span_prediction_mcq/`](https://github.com/abachaa/MEDIQA-CORR-2024/tree/main/span_prediction_mcq) for Error Span Prediction and MCQ-Style Error Correction modules. [`span_prediction_mcq/README.md`](https://github.com/abachaa/MEDIQA-CORR-2024/tree/main/span_prediction_mcq/README.md) includes instructions on steps to preprocess data, train models and perform predictions.

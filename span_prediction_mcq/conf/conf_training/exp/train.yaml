@@ -1,0 +1,38 @@
+#@package _global_
+
+defaults:
+  # - base_configs_default
+  - _self_
+  
+base_path: "." # your path to repository
+
+model:
+  model_name_or_path: michiyasunaga/BioLinkBERT-large
+  model_revision: main
+  use_auth_token: false
+
+data:
+  train_file: data/ms_train_processed_error_only_full_text_as_input.json
+  validation_file: data/ms_val_processed_error_only_full_text_as_input.json
+  overwrite_cache: true
+  preprocessing_num_workers: 10
+  max_seq_length: 512
+  doc_stride: 128
+
+training:
+  output_dir: output/train_res
+  num_train_epochs: 30
+  per_device_train_batch_size: 16
+  per_device_eval_batch_size: 16
+  evaluation_strategy: 'epoch'
+  save_strategy: 'epoch'
+  eval_steps: 1000
+  learning_rate: 5e-06
+  seed: 42
+  do_train: true
+  do_eval: true
+  do_predict: false
+
+hydra:
+  run:
+    dir: .

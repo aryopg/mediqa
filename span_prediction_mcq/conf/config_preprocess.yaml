@@ -1,0 +1,31 @@
+dataset: test # ms_val 
+paths:
+    base_path: "." # your path to repository
+
+    ms_train:
+      # predicted: ./output/train_res/predict_nbest_predictions.json 
+      original: ${paths.base_path}/data/MEDIQA-CORR-2024-MS-TrainingData.csv
+      save_path: ${paths.base_path}/output/ms_train_set_for_gpt_correction.csv
+      encoding: utf-8
+
+    ms_val:
+      predicted: ${paths.base_path}/output/train_res/eval_nbest_predictions.json
+      original: ${paths.base_path}/data/MEDIQA-CORR-2024-MS-ValidationSet-1-Full.csv
+      save_path: ${paths.base_path}/output/ms_val_set_for_gpt_correction.csv
+      encoding: utf-8
+
+    uw_val:
+      predicted: ${paths.base_path}/output/train_res/uw_pred/predict_nbest_predictions.json
+      original: ${paths.base_path}/data/MEDIQA-CORR-2024-UW-ValidationSet-1-Full_Feb.csv
+      save_path: ${paths.base_path}/output/uw_val_set_for_gpt_correction.csv
+      encoding: utf-8
+
+    test:
+      predicted: ${paths.base_path}/output/test_res/predict_nbest_predictions.json
+      original: ${paths.base_path}/data/March-26-2024-MEDIQA-CORR-Official-Test-Set.csv
+      save_path: ${paths.base_path}/output/test_set_for_gpt_correction.csv
+      encoding: MacRoman
+
+hydra:
+  run:
+    dir: .
