@@ -1,7 +1,6 @@
-# Configuration for path settings
 dataset: test # ms_val 
 paths:
-    base_path: /Users/chaeeunlee/Documents/VSC_workspaces/mediqa
+    base_path: "." # your path to repository
 
     ms_train:
       # predicted: ./output/train_res/predict_nbest_predictions.json 
@@ -26,3 +25,7 @@ paths:
       original: ${paths.base_path}/data/March-26-2024-MEDIQA-CORR-Official-Test-Set.csv
       save_path: ${paths.base_path}/output/test_set_for_gpt_correction.csv
       encoding: MacRoman
+
+hydra:
+  run:
+    dir: .

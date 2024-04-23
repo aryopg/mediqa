@@ -1,6 +1,6 @@
 
 # cd mediqa
-# python span_prediction_mcq/preprocess_correction.py
+# python span_prediction_mcq/correction/preprocess_for_correction.py
 
 import json
 import re
@@ -98,11 +98,11 @@ def trim_span(text):
     return res.strip()
 
 
-@hydra.main(config_path='./conf', config_name='config_preprocess')
+@hydra.main(config_path='../conf', config_name='config_preprocess')
 def main(configs: DictConfig):
     
     # Set which dataset to use
-    which_dataset = configs.dataset  # Options: 'test', 'ms_train', 'ms_val', 'uw_val' -> this has to be overrided on commandline. 
+    which_dataset = configs.dataset  
     config = getattr(configs.paths, which_dataset)
     
     predicted_file = config.predicted

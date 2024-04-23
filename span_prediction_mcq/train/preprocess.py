@@ -1,5 +1,5 @@
 # cd mediqa
-# python span_prediction_mcq/train/preprocess.py
+# python span_prediction_mcq/train/preprocess.py 
 import collections
 import re
 import os
@@ -8,8 +8,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 import hydra
 from omegaconf import DictConfig
-
-
 import pandas as pd
 from datasets import Dataset
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
@@ -182,7 +180,7 @@ def preprocess_data(file_path, prediction=False, error_samples_only=True):
     """
     
     if not prediction:
-        # import pdb; pdb.set_trace()
+
         df = pd.read_csv(file_path)
 
         if error_samples_only:
@@ -206,6 +204,9 @@ def preprocess_data(file_path, prediction=False, error_samples_only=True):
         df['context'] = df['context'].fillna('')
         df['question'] = "Which part in the given clinical note is clinically incorrect?"
         hf_dataset = Dataset.from_pandas(df)
+        
+    if "__index_level_0__" in hf_dataset.column_names:
+        hf_dataset = hf_dataset.remove_columns(["__index_level_0__"]) # added
 
     save_path = construct_save_path(file_path, error_samples_only)
     hf_dataset.to_json(save_path)
@@ -246,16 +247,11 @@ def construct_save_path(file_path, error_only, full_text=True):
 @hydra.main(config_path='../conf', config_name='config_preprocess')
 def main(cfg: DictConfig):
     
-    base_path = cfg.paths.base_path
+    # base_path = cfg.paths.base_path
     ms_train_path = cfg.paths.ms_train.original
     ms_val_path = cfg.paths.ms_val.original
     uw_val_path = cfg.paths.uw_val.original
     test_path = cfg.paths.test.original
-    
-    # preprocess_data(os.path.join(base_path, ms_train_path), error_samples_only=True, prediction=False)
-    # preprocess_data(os.path.join(base_path, ms_val_path), error_samples_only=True, prediction=False)
-    # preprocess_data(os.path.join(base_path, uw_val_path), error_samples_only=False, prediction=False)
-    # preprocess_data(os.path.join(base_path, test_path), error_samples_only=False, prediction=True)
     
     preprocess_data(ms_train_path, error_samples_only=True, prediction=False)
     preprocess_data(ms_val_path, error_samples_only=True, prediction=False)

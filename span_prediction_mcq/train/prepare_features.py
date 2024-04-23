@@ -1,7 +1,5 @@
 def prepare_train_features(examples, tokenizer, data_args, question_column_name, context_column_name, answer_column_name, pad_on_right, max_seq_length):
-    # Tokenize our examples with truncation and maybe padding, but keep the overflows using a stride. This results
-    # in one example possible giving several features when a context is long, each of those features having a
-    # context that overlaps a bit the context of the previous feature.
+
     tokenized_examples = tokenizer(
         examples[question_column_name if pad_on_right else context_column_name],
         examples[context_column_name if pad_on_right else question_column_name],
@@ -18,14 +16,9 @@ def prepare_train_features(examples, tokenizer, data_args, question_column_name,
             tokenized_examples.pop("token_type_ids")
             assert "token_type_ids" not in tokenized_examples
 
-    # Since one example might give us several features if it has a long context, we need a map from a feature to
-    # its corresponding example. This key gives us just that.
     sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
-    # The offset mappings will give us a map from token to character position in the original context. This will
-    # help us compute the start_positions and end_positions.
     offset_mapping = tokenized_examples.pop("offset_mapping")
 
-    # Let's label those examples!
     tokenized_examples["start_positions"] = []
     tokenized_examples["end_positions"] = []
 
@@ -77,9 +70,7 @@ def prepare_train_features(examples, tokenizer, data_args, question_column_name,
 
 
 def prepare_validation_features(examples, tokenizer, data_args, question_column_name, context_column_name, pad_on_right, max_seq_length):
-    # Tokenize our examples with truncation and maybe padding, but keep the overflows using a stride. This results
-    # in one example possible giving several features when a context is long, each of those features having a
-    # context that overlaps a bit the context of the previous feature.
+
     tokenized_examples = tokenizer(
         examples[question_column_name if pad_on_right else context_column_name],
         examples[context_column_name if pad_on_right else question_column_name],
@@ -96,12 +87,8 @@ def prepare_validation_features(examples, tokenizer, data_args, question_column_
             tokenized_examples.pop("token_type_ids")
             assert "token_type_ids" not in tokenized_examples
 
-    # Since one example might give us several features if it has a long context, we need a map from a feature to
-    # its corresponding example. This key gives us just that.
     sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
 
-    # For evaluation, we will need to convert our predictions to substrings of the context, so we keep the
-    # corresponding example_id and we will store the offset mappings.
     tokenized_examples["example_id"] = []
 
     for i in range(len(tokenized_examples["input_ids"])):
@@ -114,8 +101,6 @@ def prepare_validation_features(examples, tokenizer, data_args, question_column_
         sample_index = sample_mapping[i]
         tokenized_examples["example_id"].append(examples["id"][sample_index])
 
-        # Set to None the offset_mapping that are not part of the context so it's easy to determine if a token
-        # position is part of the context or not.
         tokenized_examples["offset_mapping"][i] = [
             (o if sequence_ids[k] == context_index else None)
             for k, o in enumerate(tokenized_examples["offset_mapping"][i])

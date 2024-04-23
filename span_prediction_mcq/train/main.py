@@ -1,5 +1,6 @@
 # cd mediqa
-# python span_prediction_mcq/train/main.py +exp=train / predict
+# python span_prediction_mcq/train/main.py +exp=train
+# python span_prediction_mcq/train/main.py +exp=predict model.model_name_or_path=output/train_res/checkpoint-directory
 
 
 # Copyright 2020 The HuggingFace Team All rights reserved.
@@ -49,8 +50,6 @@ def main(configs: BaseConfigs) -> None:
     model_args, data_args = configs.model, configs.data
     training_args = dict(configs.training)
     training_args = TrainingArguments(**training_args)
-    
-    import pdb; pdb.set_trace() 
 
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
