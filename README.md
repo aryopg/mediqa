@@ -71,4 +71,4 @@ You can inspect the YAML config file by navigating to: `configs/experiment/cot_b
 
 ### Error Span Prediction + MCQ Prompts
 
-Navigate to [`span_prediction_mcq/`](https://github.com/aryopg/mediqa/span_prediction_mcq) for Error Span Prediction and MCQ-Style Error Correction modules. [`span_prediction_mcq/README.md`](https://github.com/aryopg/mediqa/span_prediction_mcq/README.md) includes instructions on steps to preprocess data, train model and perform predictions.
+Navigate to [`span_prediction_mcq/`](https://github.com/aryopg/mediqa/tree/main/span_prediction_mcq) for Error Span Prediction and MCQ-Style Error Correction modules. [`span_prediction_mcq/README.md`](https://github.com/aryopg/mediqa/tree/main/span_prediction_mcq/README.md) includes instructions on steps to preprocess data, train model and perform predictions.
